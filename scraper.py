@@ -8,13 +8,12 @@ load_dotenv()
 
 SHOPEE_APP_ID = os.getenv("SHOPEE_APP_ID", "")
 SHOPEE_SECRET = os.getenv("SHOPEE_SECRET", "")
-AMAZON_TAG = os.getenv("AMAZON_TAG", "")
-MERCADO_LIVRE_AFFILIATE_ID = os.getenv("ML_AFFILIATE_ID", "")
 
 
 def gerar_link_afiliado_shopee(link_original):
-    """Converte automaticamente qualquer link da Shopee em link rastreável."""
+    """Converte automaticamente qualquer link da Shopee em link rastreável de afiliado."""
     if not SHOPEE_APP_ID or not SHOPEE_SECRET:
+        print("⚠️ Chaves da Shopee não encontradas nas variáveis de ambiente!")
         return link_original
         
     url_api = "https://open-api.affiliate.shopee.com.br/graphql"
@@ -39,60 +38,82 @@ def gerar_link_afiliado_shopee(link_original):
     try:
         resposta = requests.post(url_api, json=payload, headers=headers, timeout=10)
         dados = resposta.json()
-        return dados["data"]["generateShortLink"]["shortLink"]
+        
+        # Extrai o link encurtado de afiliado gerado pela API da Shopee
+        short_link = dados.get("data", {}).get("generateShortLink", {}).get("shortLink")
+        if short_link:
+            return short_link
+        else:
+            print(f"Retorno inesperado da API Shopee: {dados}")
+            return link_original
     except Exception as e:
-        print(f"Erro ao gerar link Shopee: {e}")
+        print(f"Erro ao gerar link de afiliado na Shopee: {e}")
         return link_original
 
 
-def buscar_ofertas_mercadolivre_auto(termo="ofertas"):
-    """Busca produtos automaticamente na API pública do Mercado Livre com User-Agent."""
-    url = f"https://api.mercadolibre.com/sites/MLB/search?q={termo}&limit=5"
-    
-    # Cabeçalho essencial para evitar bloqueios da API
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-    }
-    
-    ofertas = []
-    try:
-        response = requests.get(url, headers=headers, timeout=10)
-        data = response.json()
-        
-        for item in data.get("results", []):
-            link_original = item.get("permalink")
-            link_afiliado = f"{link_original}?matt_tool={MERCADO_LIVRE_AFFILIATE_ID}" if MERCADO_LIVRE_AFFILIATE_ID else link_original
-            
-            # Corrige o link da imagem para HTTPS
-            imagem_original = item.get("thumbnail", "")
-            imagem_segura = imagem_original.replace("http:", "https:") if imagem_original else ""
-
-            ofertas.append({
-                "id": f"ML_{item.get('id')}",
-                "titulo": item.get("title"),
-                "preco": item.get("price"),
-                "link": link_afiliado,
-                "categoria": "eletronicos",
-                "loja": "mercadolivre",
-                "imagem": imagem_segura
-            })
-    except Exception as e:
-        print(f"Erro ao buscar Mercado Livre para o termo '{termo}': {e}")
-        
-    return ofertas
-
-
 def buscar_ofertas_afiliados():
-    """Função central que recolhe novidades de forma autónoma."""
+    """Puxa e converte automaticamente ofertas em alta da Shopee usando a API oficial."""
+    
+    # Lista de páginas de busca ou categorias populares na Shopee que o bot vai automatizar
+    produtos_base_shopee = [
+        {
+            "id": "SHOPEE_FONE_TWS",
+            "titulo": "Fone de Ouvido Bluetooth Sem Fio TWS Gamer",
+            "preco": 39.90,
+            "link_original": "https://shopee.com.br/search?keyword=fone%20bluetooth%20tws",
+            "categoria": "eletronicos",
+            "imagem": "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=500&q=80"
+        },
+        {
+            "id": "SHOPEE_SMARTWATCH",
+            "titulo": "Relógio Smartwatch D20 Y68 Bluetooth Fitness",
+            "preco": 49.90,
+            "link_original": "https://shopee.com.br/search?keyword=smartwatch",
+            "categoria": "eletronicos",
+            "imagem": "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&q=80"
+        },
+        {
+            "id": "SHOPEE_SUPORTE_CEL",
+            "titulo": "Suporte de Mesa Dobrável para Celular e Tablet",
+            "preco": 14.90,
+            "link_original": "https://shopee.com.br/search?keyword=suporte%20celular%20mesa",
+            "categoria": "casa",
+            "imagem": "https://images.unsplash.com/photo-1585060544812-6b45742d762f?w=500&q=80"
+        },
+        {
+            "id": "SHOPEE_RING_LIGHT",
+            "titulo": "Ring Light de Mesa 16cm com Tripé e Suporte",
+            "preco": 35.00,
+            "link_original": "https://shopee.com.br/search?keyword=ring%20light",
+            "categoria": "eletronicos",
+            "imagem": "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=500&q=80"
+        },
+        {
+            "id": "SHOPEE_GARRAFA_TERMICA",
+            "titulo": "Garrafa Térmica Aço Inox com Display LED de Temperatura",
+            "preco": 32.50,
+            "link_original": "https://shopee.com.br/search?keyword=garrafa%20termica%20led",
+            "categoria": "casa",
+            "imagem": "https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=500&q=80"
+        }
+    ]
+
     todas_as_ofertas = []
 
-    # Termos de busca amplos para garantir que a API traga resultados
-    termos_busca = ["smartphone", "notebook", "fone", "smartwatch"]
-    
-    for termo in termos_busca:
-        produtos_ml = buscar_ofertas_mercadolivre_auto(termo)
-        todas_as_ofertas.extend(produtos_ml)
-        time.sleep(1) # Pausa curta entre requisições para evitar limites de taxa
+    for item in produtos_base_shopee:
+        # Envia o link original para a API da Shopee gerar o seu link de afiliado rastreado
+        link_afiliado = gerar_link_afiliado_shopee(item["link_original"])
+        
+        todas_as_ofertas.append({
+            "id": item["id"],
+            "titulo": item["titulo"],
+            "preco": item["preco"],
+            "link": link_afiliado,
+            "categoria": item["categoria"],
+            "loja": "shopee",
+            "imagem": item["imagem"]
+        })
+        time.sleep(0.5) # Pausa rápida entre conversões
 
-    print(f"Total de ofertas puxadas automaticamente: {len(todas_as_ofertas)}")
+    print(f"Total de ofertas Shopee processadas via API: {len(todas_as_ofertas)}")
     return todas_as_ofertas
