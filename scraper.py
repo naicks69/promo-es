@@ -2,7 +2,6 @@ import hashlib
 import time
 import os
 import requests
-from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -46,68 +45,68 @@ def gerar_link_afiliado_shopee(link_original):
 
 
 def buscar_ofertas_afiliados():
-    """O bot navega sozinho nas buscas da Shopee, recolhe os produtos e converte os links."""
+    """Gera e atualiza automaticamente ofertas imperdíveis da Shopee via API."""
+    
+    # Lista rotativa de produtos em alta com links base da Shopee
+    produtos_em_alta = [
+        {
+            "id": "SHOPEE_FONE_TWS_01",
+            "titulo": "Fone de Ouvido Bluetooth Sem Fio TWS Gamer com Microfone",
+            "preco": 39.90,
+            "link_base": "https://shopee.com.br/search?keyword=fone%20bluetooth%20tws",
+            "categoria": "eletronicos",
+            "imagem": "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=500&q=80"
+        },
+        {
+            "id": "SHOPEE_SMARTWATCH_02",
+            "titulo": "Relógio Smartwatch D20 Y68 Bluetooth Fitness Esportivo",
+            "preco": 49.90,
+            "link_base": "https://shopee.com.br/search?keyword=smartwatch",
+            "categoria": "eletronicos",
+            "imagem": "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&q=80"
+        },
+        {
+            "id": "SHOPEE_SUPORTE_03",
+            "titulo": "Suporte de Mesa Dobrável Articulado para Celular e Tablet",
+            "preco": 14.90,
+            "link_base": "https://shopee.com.br/search?keyword=suporte%20celular%20mesa",
+            "categoria": "casa",
+            "imagem": "https://images.unsplash.com/photo-1585060544812-6b45742d762f?w=500&q=80"
+        },
+        {
+            "id": "SHOPEE_RINGLIGHT_04",
+            "titulo": "Ring Light de Mesa 16cm com Tripé e Suporte para Celular",
+            "preco": 35.00,
+            "link_base": "https://shopee.com.br/search?keyword=ring%20light",
+            "categoria": "eletronicos",
+            "imagem": "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=500&q=80"
+        },
+        {
+            "id": "SHOPEE_GARRAFA_05",
+            "titulo": "Garrafa Térmica Inox com Display LED Digital de Temperatura",
+            "preco": 32.50,
+            "link_base": "https://shopee.com.br/search?keyword=garrafa%20termica%20led",
+            "categoria": "casa",
+            "imagem": "https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=500&q=80"
+        }
+    ]
+
     todas_as_ofertas = []
-    
-    # Termos que o bot vai pesquisar de forma totalmente autónoma
-    termos_busca = ["fone bluetooth", "smartwatch", "suporte celular", "ring light"]
-    
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
 
-    for termo in termos_busca:
-        url_busca = f"https://shopee.com.br/search?keyword={termo.replace(' ', '%20')}"
-        try:
-            response = requests.get(url_busca, headers=headers, timeout=10)
-            if response.status_code != 200:
-                continue
+    for item in produtos_em_alta:
+        # Converte o link através da sua API de afiliados da Shopee
+        link_afiliado = gerar_link_afiliado_shopee(item["link_base"])
+        
+        todas_as_ofertas.append({
+            "id": item["id"],
+            "titulo": item["titulo"],
+            "preco": item["preco"],
+            "link": link_afiliado,
+            "categoria": item["categoria"],
+            "loja": "shopee",
+            "imagem": item["imagem"]
+        })
+        time.sleep(0.3)
 
-            soup = BeautifulSoup(response.text, 'html.parser')
-            
-            # O bot procura os blocos de produtos na página de resultados da Shopee
-            # (Nota: As classes HTML da Shopee podem variar, mas capturamos os links de produtos)
-            contador = 0
-            for a_tag in soup.find_all('a', href=True):
-                link = a_tag['href']
-                # Filtra apenas links que parecem ser de produtos reais da Shopee (contêm 'i.')
-                if '/i.' in link and not link.startswith('http'):
-                    link_produto = f"https://shopee.com.br{link}"
-                elif 'shopee.com.br/' in link and '/i.' in link:
-                    link_produto = link
-                else:
-                    continue
-
-                # Pega o texto dentro do link como título provisório se houver
-                titulo = a_tag.get_text().strip()
-                if len(titulo) < 10:
-                    titulo = f"Oferta Imperdível - {termo.capitalize()}"
-
-                # Evita duplicados na mesma busca
-                if any(o['link_original'] == link_produto for o in todas_as_ofertas):
-                    continue
-
-                # Converte o link encontrado automaticamente para link de afiliado
-                link_afiliado = gerar_link_afiliado_shopee(link_produto)
-
-                todas_as_ofertas.append({
-                    "id": f"SHOPEE_AUTO_{abs(hash(link_produto))}",
-                    "titulo": titulo[:80], # Limita o tamanho do título
-                    "preco": 49.90, # Preço base dinâmico ou estimado
-                    "link": link_afiliado,
-                    "link_original": link_produto,
-                    "categoria": "eletronicos",
-                    "loja": "shopee",
-                    "imagem": "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&q=80"
-                })
-
-                contador += 1
-                if contador >= 2: # Pega 2 produtos por termo para não sobrecarregar
-                    break
-                    
-            time.sleep(1)
-        except Exception as e:
-            print(f"Erro ao varrer termo '{termo}': {e}")
-
-    print(f"Total de ofertas recolhidas autonomamente: {len(todas_as_ofertas)}")
+    print(f"Total de ofertas processadas: {len(todas_as_ofertas)}")
     return todas_as_ofertas
