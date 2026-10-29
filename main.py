@@ -1,3 +1,4 @@
+import os
 import threading
 import time
 import requests
@@ -25,6 +26,16 @@ def api_ofertas():
     # Puxa as ofertas salvas automaticamente do banco de dados
     ofertas = buscar_ofertas_db()
     return jsonify(ofertas)
+
+
+@app.route("/forcar-atualizacao")
+def forcar_atualizacao():
+    """Rota manual para testar e forçar a busca de ofertas na hora."""
+    try:
+        ofertas = buscar_ofertas_afiliados()
+        return f"🔄 Busca forçada executada com sucesso! O bot encontrou {len(ofertas)} produtos e atualizou o sistema."
+    except Exception as e:
+        return f"❌ Erro ao forçar atualização: {e}", 500
 
 
 # ==========================================
@@ -147,8 +158,9 @@ def processar_ofertas():
 # ==========================================
 
 if __name__ == "__main__":
-    # Inicia a thread de varredura e envio automático em segundo plano
+    # Inicia a thread de varredura em segundo plano
     threading.Thread(target=processar_ofertas, daemon=True).start()
 
-    # Inicia a aplicação Flask
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    # Pega a porta do ambiente (Render) ou usa a porta 5000 por padrão localmente
+    porta = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=porta, debug=False)
