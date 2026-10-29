@@ -29,19 +29,20 @@ def nomes_das_categorias(categorias):
     return nomes[0] if len(nomes) == 1 else f"{', '.join(nomes[:-1])} e {nomes[-1]}"
 
 
-def texto_menu(intervalo_minutos):
+def texto_menu(intervalo_minutos, link_grupo=""):
     opcoes = "\n".join(f"• {nome}" for nome in CATEGORIAS.values())
+    grupo = f"\n\n📣 Ou entre no nosso grupo de promoções:\n{link_grupo}" if link_grupo else ""
     return (
         "👋 Olá! Eu sou o bot do *Radar de Ofertas*.\n\n"
         f"Envio promoções da Amazon, Shopee e Mercado Livre a cada {intervalo_minutos} minutos.\n\n"
-        "Para receber, responda com as categorias que você quer, por exemplo:\n"
+        "Para receber aqui no privado, responda com as categorias que você quer, por exemplo:\n"
         "*Quero receber Casa e Gamer*\n\n"
         f"Categorias:\n{opcoes}\n• Tudo\n\n"
-        "Para parar de receber, envie *SAIR*."
+        f"Para parar de receber, envie *SAIR*.{grupo}"
     )
 
 
-def interpretar_mensagem(texto, intervalo_minutos):
+def interpretar_mensagem(texto, intervalo_minutos, link_grupo=""):
     """Decide o que fazer com uma mensagem recebida pelo bot.
 
     Devolve (acao, categorias, resposta), onde acao é "inscrever", "sair" ou "menu".
@@ -59,7 +60,7 @@ def interpretar_mensagem(texto, intervalo_minutos):
     categorias = categorias_no_texto(texto)
     quer_entrar = categorias or any(p in palavras for p in PALAVRAS_ENTRAR)
     if not quer_entrar:
-        return "menu", [], texto_menu(intervalo_minutos)
+        return "menu", [], texto_menu(intervalo_minutos, link_grupo)
 
     if not categorias:
         categorias = ["todas"]
@@ -76,15 +77,13 @@ def formatar_preco(preco):
     return f"R$ {int(inteiro):,}".replace(",", ".") + f",{centavos}"
 
 
-def montar_mensagem_ofertas(ofertas):
-    """Junta várias ofertas numa única mensagem, para não lotar a conversa."""
-    blocos = []
-    for oferta in ofertas:
-        loja = LOJAS.get(oferta.get("loja"), oferta.get("loja") or "")
-        blocos.append(
-            f"📦 *{oferta['titulo']}*\n"
-            f"💰 *{formatar_preco(oferta['preco'])}* na {loja}\n"
-            f"👉 {oferta['link']}"
-        )
-    titulo = "🔥 *Nova oferta no Radar!*" if len(ofertas) == 1 else f"🔥 *{len(ofertas)} novas ofertas no Radar!*"
-    return f"{titulo}\n\n" + "\n\n".join(blocos) + "\n\n_Para parar de receber, envie SAIR._"
+def texto_oferta(oferta):
+    """Legenda de uma oferta, enviada junto com a foto do produto."""
+    chave = oferta.get("loja") or ""
+    loja = LOJAS.get(chave, chave)
+    preposicao = "no" if chave == "mercadolivre" else "na"
+    return (
+        f"🔥 *{oferta['titulo']}*\n\n"
+        f"💰 *{formatar_preco(oferta['preco'])}* {preposicao} {loja}\n\n"
+        f"🛒 Compre aqui: {oferta['link']}"
+    )

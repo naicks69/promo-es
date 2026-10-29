@@ -9,9 +9,10 @@ das ofertas pelo WhatsApp.
   seguinte dos resultados, para variar os produtos) e salva no banco.
 - **Cada oferta fica no site por até 4 horas** depois de publicada; depois disso
   ela sai do site e do banco.
-- **A cada 30 minutos**, das 8h às 22h, cada pessoa inscrita no WhatsApp recebe
-  uma mensagem com até 3 ofertas novas das categorias que escolheu, sem repetir
-  ofertas que já recebeu.
+- **A cada 10 minutos**, das 8h às 22h, o bot de WhatsApp posta nos grupos
+  ativados até 3 ofertas novas do site (foto, preço e link de afiliado). Quem se
+  inscreve no privado recebe só as categorias que escolheu. Nenhuma oferta se repete
+  para o mesmo grupo ou pessoa.
 
 As variáveis de ambiente estão explicadas em `.env.example`.
 
@@ -27,49 +28,81 @@ Para integrar uma loja nova, crie a função de busca em `scraper.py` e inclua-a
 `FONTES_DE_OFERTAS`. Ela deve devolver ofertas com `link` de afiliado e `loja`
 igual a `amazon` ou `mercadolivre`.
 
-## Ligando o bot de WhatsApp ao site
+## Bot de WhatsApp (pasta `bot/`)
 
-O botão "Receber no WhatsApp" do site abre uma conversa com o bot já com a mensagem
-escrita, por exemplo: *Quero receber ofertas de Casa e Gamer*. Para o bot cadastrar
-a pessoa, ele precisa repassar cada mensagem recebida para o site e responder com o
-texto que o site devolver.
+O bot usa o número **+55 11 91003-2144** como um "aparelho conectado" do WhatsApp
+(como o WhatsApp Web). O celular com esse número continua funcionando normalmente.
 
-**Rota:** `POST /api/whatsapp/mensagem`
-**Cabeçalho:** `X-Bot-Token: <mesmo valor de WHATSAPP_BOT_TOKEN>`
-**Corpo:** `{"numero": "<id do WhatsApp>", "texto": "<mensagem recebida>"}`
-**Resposta:** `{"acao": "inscrever" | "sair" | "menu", "resposta": "<texto para enviar de volta>"}`
+O bot é quem procura o site: a cada minuto ele pergunta se há ofertas para enviar,
+então pode rodar em qualquer computador, sem precisar de endereço público.
 
-O `numero` enviado aqui é o mesmo que o site usa depois em `/send-promo`, então use
-o formato que o seu bot já aceita para enviar mensagens.
+### 1. Combinar a senha entre o site e o bot
 
-Exemplo com Baileys (Node.js):
+No Render, em **Environment**, crie `WHATSAPP_BOT_TOKEN` com uma senha forte
+(ex.: uma sequência longa de letras e números). Use a mesma senha no passo 3.
 
-```js
-sock.ev.on('messages.upsert', async ({ messages }) => {
-  for (const msg of messages) {
-    const numero = msg.key.remoteJid;
-    if (msg.key.fromMe || !msg.message || numero.endsWith('@g.us')) continue; // ignora grupos
+### 2. Instalar
 
-    const texto = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
-    if (!texto) continue;
+No computador que vai deixar o bot ligado (precisa do Node.js 20 ou mais novo,
+em nodejs.org):
 
-    const r = await fetch(`${process.env.SITE_URL}/api/whatsapp/mensagem`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Bot-Token': process.env.WHATSAPP_BOT_TOKEN,
-      },
-      body: JSON.stringify({ numero, texto }),
-    });
-    const { resposta } = await r.json();
-    if (resposta) await sock.sendMessage(numero, { text: resposta });
-  }
-});
+```bash
+cd bot
+npm install
 ```
 
-O que o bot entende:
+### 3. Configurar
+
+Copie `bot/.env.example` para `bot/.env` e preencha `SITE_URL` (endereço do site
+no Render) e `WHATSAPP_BOT_TOKEN` (a senha do passo 1).
+
+### 4. Ligar e conectar o número
+
+```bash
+npm start
+```
+
+Na primeira vez aparece um **código de 8 letras**. No celular do número do bot,
+abra o WhatsApp > Configurações > Aparelhos conectados > Conectar aparelho >
+**Conectar com número de telefone** e digite o código. A conexão fica salva na
+pasta `bot/sessao` (não apague e não compartilhe essa pasta).
+
+### 5. Ativar o grupo de promoções
+
+1. No celular do bot, crie o grupo (ex.: "Radar de Ofertas - Promoções"). O número
+   do bot precisa ser administrador, e é recomendado deixar só administradores
+   enviarem mensagens (Configurações do grupo > Enviar mensagens > Só admins).
+2. Escreva **`!ativar`** no grupo, pelo celular do bot.
+3. O bot confirma no grupo e envia o link de convite para o site, que passa a
+   mostrar o botão "Entrar no grupo de promoções" sozinho.
+
+Para parar de postar em um grupo, escreva **`!desativar`** nele.
+
+### Mensagens que o bot entende no privado
 
 - `Quero receber ofertas de Casa e Gamer`: inscreve nas categorias citadas
 - `Quero receber` ou `Tudo`: inscreve em todas as categorias
 - `SAIR`, `PARAR` ou `CANCELAR`: cancela a inscrição
-- qualquer outra mensagem: responde com o menu de opções
+- qualquer outra mensagem: responde com o menu e o link do grupo
+
+### Cuidados
+
+- O bot precisa ficar ligado o tempo todo para postar. Se o computador desligar,
+  as ofertas param até ele voltar (nada se perde: ele continua de onde parou).
+- O WhatsApp não tem API oficial para isso. O bot usa a biblioteca Baileys, e o
+  WhatsApp pode bloquear números que mandam muitas mensagens. Por isso o bot faz
+  pausas entre envios, não envia à noite e manda poucas ofertas por rodada.
+- O celular do bot precisa abrir o WhatsApp pelo menos uma vez a cada 14 dias,
+  senão o WhatsApp desconecta os aparelhos conectados.
+
+### Rotas do site usadas pelo bot
+
+Todas exigem o cabeçalho `X-Bot-Token` com a senha de `WHATSAPP_BOT_TOKEN`.
+
+| Rota | Para que serve |
+| --- | --- |
+| `GET /api/whatsapp/pendentes` | ofertas que cada grupo ou pessoa deve receber agora |
+| `POST /api/whatsapp/confirmar` | marca as ofertas enviadas, para não repetir |
+| `POST /api/whatsapp/mensagem` | mensagem recebida no privado; devolve a resposta |
+| `POST /api/whatsapp/grupos` | ativa um grupo (comando `!ativar`) |
+| `POST /api/whatsapp/grupos/remover` | desativa um grupo (comando `!desativar`) |

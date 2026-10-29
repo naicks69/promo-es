@@ -108,6 +108,16 @@ def inicializar_banco():
         )
     """)
 
+    # 5. Grupos de WhatsApp onde o bot posta as ofertas
+    executar("""
+        CREATE TABLE IF NOT EXISTS grupos (
+            jid TEXT PRIMARY KEY,
+            nome TEXT,
+            link_convite TEXT,
+            data_ativacao TIMESTAMP
+        )
+    """)
+
     # Remove os produtos de exemplo antigos (links inventados, que não abriam o produto)
     executar("DELETE FROM ofertas WHERE substr(id, 1, 5) = 'PROD_'")
 
@@ -261,11 +271,48 @@ def ofertas_para_enviar(whatsapp_id, categorias, limite, horas_validade=4):
     return [linha_para_oferta(l) for l in executar(sql, tuple(parametros), buscar="todos")]
 
 
+def ultimo_envio(whatsapp_id):
+    """Data (texto UTC) da última oferta enviada para a pessoa ou grupo, ou None."""
+    linha = executar(
+        "SELECT MAX(data_envio) FROM envios WHERE whatsapp_id = ?", (whatsapp_id,), buscar="um"
+    )
+    return data_iso(linha[0]) if linha and linha[0] else None
+
+
 def registrar_envio(whatsapp_id, produto_id):
     executar(
         "INSERT INTO envios (whatsapp_id, produto_id, data_envio) VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
         (whatsapp_id, produto_id, agora_utc()),
     )
+
+
+# ==========================================
+# GRUPOS DE WHATSAPP
+# ==========================================
+
+def salvar_grupo(jid, nome, link_convite):
+    """Ativa um grupo: ele passa a receber todas as ofertas e o convite aparece no site."""
+    executar("""
+        INSERT INTO grupos (jid, nome, link_convite, data_ativacao) VALUES (?, ?, ?, ?)
+        ON CONFLICT (jid) DO UPDATE SET nome = excluded.nome, link_convite = excluded.link_convite
+    """, (jid, nome, link_convite, agora_utc()))
+    definir_interesses(jid, ["todas"])
+
+
+def remover_grupo(jid):
+    executar("DELETE FROM grupos WHERE jid = ?", (jid,))
+    cancelar_inscricao(jid)
+
+
+def link_convite_grupo():
+    """Link de convite do grupo ativado mais recentemente (exibido no site)."""
+    linha = executar("""
+        SELECT link_convite FROM grupos
+        WHERE link_convite IS NOT NULL AND link_convite != ''
+        ORDER BY data_ativacao DESC
+        LIMIT 1
+    """, buscar="um")
+    return linha[0] if linha else ""
 
 
 if __name__ == "__main__":
