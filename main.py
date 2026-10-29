@@ -15,37 +15,38 @@ from database import (
     cancelar_inscricao,
     listar_inscritos,
     ofertas_para_enviar,
+    ultimo_envio,
     registrar_envio,
+    salvar_grupo,
+    remover_grupo,
+    link_convite_grupo,
     agora_utc,
     data_iso,
 )
 from scraper import buscar_ofertas_afiliados, CATEGORIAS, LOJAS
-from whatsapp import interpretar_mensagem, montar_mensagem_ofertas
+from whatsapp import interpretar_mensagem, texto_oferta
 
 app = Flask(__name__)
 inicializar_banco()
 
-# Endereço do bot de WhatsApp. No Render, configure a variável WHATSAPP_BOT_URL
-# com o endereço público do bot (127.0.0.1 só funciona se o bot rodar no mesmo servidor).
-NODE_SERVER_URL = os.getenv("WHATSAPP_BOT_URL", "http://127.0.0.1:3000/send-promo")
+# Número do bot (só dígitos, com DDI e DDD). O site usa para o botão "Falar com o bot".
+NUMERO_BOT_WHATSAPP = re.sub(r"\D", "", os.getenv("WHATSAPP_NUMERO_BOT", "5511910032144"))
 
-# Número do bot (só dígitos, com DDI e DDD, ex.: 5511999998888). O botão do site abre
-# uma conversa com ele já com a mensagem de inscrição escrita.
-NUMERO_BOT_WHATSAPP = re.sub(r"\D", "", os.getenv("WHATSAPP_NUMERO_BOT", ""))
-
-# Link de convite do grupo/canal de WhatsApp (opcional, aparece como alternativa)
+# Link de convite do grupo de promoções. Normalmente não precisa configurar: o bot
+# envia o convite sozinho quando o grupo é ativado com !ativar. Esta variável só
+# serve para forçar outro link.
 LINK_GRUPO_WHATSAPP = os.getenv("WHATSAPP_LINK", "")
 
-# Chave que o bot envia no cabeçalho X-Bot-Token para cadastrar pessoas.
-# Sem ela configurada, qualquer um poderia inscrever números de terceiros.
+# Senha combinada entre o site e o bot (o bot envia no cabeçalho X-Bot-Token).
+# Enquanto não estiver configurada, as rotas do bot ficam bloqueadas.
 TOKEN_BOT = os.getenv("WHATSAPP_BOT_TOKEN", "")
 
 # Busca ofertas novas a cada 5 minutos e mantém cada uma no site por até 4 horas
 INTERVALO_VARREDURA = int(os.getenv("INTERVALO_VARREDURA", "300"))
 HORAS_VALIDADE_OFERTA = float(os.getenv("HORAS_VALIDADE_OFERTA", "4"))
 
-# Envio no WhatsApp: a cada 30 minutos, até 3 ofertas novas por pessoa numa só mensagem
-INTERVALO_WHATSAPP = int(os.getenv("INTERVALO_WHATSAPP", "1800"))
+# WhatsApp: a cada 10 minutos, até 3 ofertas novas para cada grupo e pessoa inscrita
+INTERVALO_WHATSAPP = int(os.getenv("INTERVALO_WHATSAPP", "600"))
 OFERTAS_POR_MENSAGEM = int(os.getenv("OFERTAS_POR_MENSAGEM", "3"))
 
 # Horário de Brasília em que o bot não manda ofertas (das 22h às 8h)
@@ -66,6 +67,14 @@ ultima_varredura = None
 # 1. ROTAS DO SITE E DA API DE PRODUTOS
 # ==========================================
 
+def link_do_grupo():
+    try:
+        return LINK_GRUPO_WHATSAPP or link_convite_grupo()
+    except Exception as e:
+        print(f"Erro ao buscar o link do grupo: {e}")
+        return ""
+
+
 @app.route("/")
 def home():
     link_bot = ""
@@ -74,7 +83,7 @@ def home():
     return render_template(
         "index.html",
         link_bot=link_bot,
-        link_grupo=LINK_GRUPO_WHATSAPP,
+        link_grupo=link_do_grupo(),
         categorias=CATEGORIAS,
         lojas=LOJAS,
         intervalo_whatsapp=INTERVALO_WHATSAPP // 60,
@@ -123,7 +132,13 @@ def forcar_atualizacao():
 # ==========================================
 
 def pedido_do_bot_autorizado():
-    return not TOKEN_BOT or request.headers.get("X-Bot-Token") == TOKEN_BOT
+    return bool(TOKEN_BOT) and request.headers.get("X-Bot-Token") == TOKEN_BOT
+
+
+def recusar_pedido_do_bot():
+    if not TOKEN_BOT:
+        return jsonify({"status": "erro", "mensagem": "Configure WHATSAPP_BOT_TOKEN no servidor"}), 503
+    return jsonify({"status": "erro", "mensagem": "Token do bot inválido"}), 401
 
 
 @app.route("/api/whatsapp/mensagem", methods=["POST"])
@@ -133,7 +148,7 @@ def mensagem_recebida_no_bot():
     Corpo esperado: {"numero": "<id do WhatsApp>", "texto": "<mensagem da pessoa>"}
     """
     if not pedido_do_bot_autorizado():
-        return jsonify({"status": "erro", "mensagem": "Token do bot inválido"}), 401
+        return recusar_pedido_do_bot()
 
     dados = request.get_json(silent=True) or {}
     numero = dados.get("numero")
@@ -141,7 +156,7 @@ def mensagem_recebida_no_bot():
     if not numero:
         return jsonify({"status": "erro", "mensagem": "Informe numero e texto"}), 400
 
-    acao, categorias, resposta = interpretar_mensagem(texto, INTERVALO_WHATSAPP // 60)
+    acao, categorias, resposta = interpretar_mensagem(texto, INTERVALO_WHATSAPP // 60, link_do_grupo())
     if acao == "inscrever":
         definir_interesses(numero, categorias)
     elif acao == "sair":
@@ -150,10 +165,79 @@ def mensagem_recebida_no_bot():
     return jsonify({"status": "sucesso", "acao": acao, "categorias": categorias, "resposta": resposta})
 
 
+@app.route("/api/whatsapp/pendentes", methods=["GET"])
+def ofertas_pendentes():
+    """O bot consulta esta rota a cada minuto para saber o que enviar.
+
+    Cada grupo ou pessoa inscrita recebe até OFERTAS_POR_MENSAGEM ofertas novas,
+    no máximo uma vez a cada INTERVALO_WHATSAPP, e nada no horário de silêncio.
+    """
+    if not pedido_do_bot_autorizado():
+        return recusar_pedido_do_bot()
+    if em_horario_silencioso():
+        return jsonify({"envios": [], "silencio": True})
+
+    limite_ultimo_envio = agora_utc(INTERVALO_WHATSAPP / 3600)
+    envios = []
+    for destino, categorias in listar_inscritos().items():
+        ultimo = ultimo_envio(destino)
+        # Compara as datas no mesmo formato ISO (UTC); ainda dentro do intervalo, espera
+        if ultimo and ultimo > data_iso(limite_ultimo_envio):
+            continue
+        ofertas = ofertas_para_enviar(destino, categorias, OFERTAS_POR_MENSAGEM, HORAS_VALIDADE_OFERTA)
+        if ofertas:
+            envios.append({
+                "destino": destino,
+                "ofertas": [
+                    {"id": o["id"], "imagem": o["imagem"], "texto": texto_oferta(o)} for o in ofertas
+                ],
+            })
+    return jsonify({"envios": envios, "silencio": False})
+
+
+@app.route("/api/whatsapp/confirmar", methods=["POST"])
+def confirmar_envio():
+    """O bot avisa quais ofertas conseguiu enviar, para não repeti-las."""
+    if not pedido_do_bot_autorizado():
+        return recusar_pedido_do_bot()
+    dados = request.get_json(silent=True) or {}
+    destino = dados.get("destino")
+    ofertas = dados.get("ofertas") or []
+    if not destino or not isinstance(ofertas, list):
+        return jsonify({"status": "erro", "mensagem": "Informe destino e ofertas"}), 400
+    for produto_id in ofertas:
+        registrar_envio(destino, str(produto_id))
+    return jsonify({"status": "sucesso", "registradas": len(ofertas)})
+
+
+@app.route("/api/whatsapp/grupos", methods=["POST"])
+def ativar_grupo():
+    """O bot registra um grupo quando o dono do número escreve !ativar nele."""
+    if not pedido_do_bot_autorizado():
+        return recusar_pedido_do_bot()
+    dados = request.get_json(silent=True) or {}
+    jid = dados.get("jid") or ""
+    if not jid.endswith("@g.us"):
+        return jsonify({"status": "erro", "mensagem": "Informe o jid do grupo"}), 400
+    salvar_grupo(jid, dados.get("nome") or "", dados.get("convite") or "")
+    return jsonify({"status": "sucesso"})
+
+
+@app.route("/api/whatsapp/grupos/remover", methods=["POST"])
+def desativar_grupo():
+    if not pedido_do_bot_autorizado():
+        return recusar_pedido_do_bot()
+    jid = (request.get_json(silent=True) or {}).get("jid")
+    if not jid:
+        return jsonify({"status": "erro", "mensagem": "Informe o jid do grupo"}), 400
+    remover_grupo(jid)
+    return jsonify({"status": "sucesso"})
+
+
 @app.route("/api/interesse", methods=["POST"])
 def salvar_interesse():
     if not pedido_do_bot_autorizado():
-        return jsonify({"status": "erro", "mensagem": "Token do bot inválido"}), 401
+        return recusar_pedido_do_bot()
 
     dados = request.get_json(silent=True) or {}
     whatsapp_id = dados.get("whatsapp_id")
@@ -208,55 +292,11 @@ def processar_ofertas():
         time.sleep(INTERVALO_VARREDURA)
 
 
-def disparar_para_whatsapp(whatsapp_id, texto):
-    try:
-        resposta = requests.post(
-            NODE_SERVER_URL,
-            json={"numero": whatsapp_id, "mensagem": texto},
-            timeout=10,
-        )
-        return resposta.ok
-    except Exception as e:
-        print(f"Erro ao disparar mensagem para {whatsapp_id}: {e}")
-        return False
-
-
 def em_horario_silencioso():
     hora = datetime.now(FUSO_BRASILIA).hour
     if SILENCIO_INICIO > SILENCIO_FIM:
         return hora >= SILENCIO_INICIO or hora < SILENCIO_FIM
     return SILENCIO_INICIO <= hora < SILENCIO_FIM
-
-
-def enviar_ofertas_whatsapp():
-    """Manda para cada inscrito uma mensagem com as ofertas novas das categorias dele."""
-    for whatsapp_id, categorias in listar_inscritos().items():
-        ofertas = ofertas_para_enviar(
-            whatsapp_id, categorias, OFERTAS_POR_MENSAGEM, HORAS_VALIDADE_OFERTA
-        )
-        if not ofertas:
-            continue
-
-        print(f"Enviando {len(ofertas)} oferta(s) para {whatsapp_id}...")
-        if disparar_para_whatsapp(whatsapp_id, montar_mensagem_ofertas(ofertas)):
-            # Só marca como enviada se o bot confirmou; senão tenta no próximo ciclo
-            for oferta in ofertas:
-                registrar_envio(whatsapp_id, oferta["id"])
-        time.sleep(3)  # Pausa entre pessoas para o WhatsApp não bloquear o número
-
-
-def processar_whatsapp():
-    # Espera a primeira varredura terminar antes do primeiro envio
-    time.sleep(60)
-    while True:
-        if em_horario_silencioso():
-            print("🌙 Horário de silêncio: nenhuma oferta enviada no WhatsApp agora.")
-        else:
-            try:
-                enviar_ofertas_whatsapp()
-            except Exception as e:
-                print(f"Erro no envio de ofertas pelo WhatsApp: {e}")
-        time.sleep(INTERVALO_WHATSAPP)
 
 
 def manter_acordado():
@@ -272,7 +312,6 @@ def manter_acordado():
 def iniciar_tarefas_em_segundo_plano():
     # Inicia assim que o app carrega, funcionando tanto com "python main.py" quanto com gunicorn
     threading.Thread(target=processar_ofertas, daemon=True).start()
-    threading.Thread(target=processar_whatsapp, daemon=True).start()
     if URL_PUBLICA:
         threading.Thread(target=manter_acordado, daemon=True).start()
 

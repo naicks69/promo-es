@@ -134,6 +134,7 @@
             text-align: center;
         }
         .so-tela-grande { display: none; }
+        @media (min-width: 640px) { .so-celular { display: none; } }
         @media (max-width: 400px) {
             .botao-topo.whatsapp .rotulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
             .botao-topo.whatsapp { padding: 0 11px; }
@@ -226,47 +227,143 @@
                 var(--mercadolivre) 66.66% 100%);
         }
 
-        /* ---------- Chamada do WhatsApp ---------- */
-        .chamada-whatsapp {
+        /* ---------- Grupo de promoções no WhatsApp ---------- */
+        .grupo-promo {
+            grid-column: 1 / -1;
+            display: grid;
+            gap: 20px;
+            padding: 22px 18px;
+            border-radius: 18px;
+            background: #0B4F3C;
+            color: #fff;
+        }
+        .grupo-texto h2 {
+            margin: 0 0 12px;
+            font-size: clamp(24px, 6vw, 34px);
+            line-height: 1.05;
+            letter-spacing: -0.03em;
+        }
+        .grupo-texto ul {
+            margin: 0 0 18px;
+            padding: 0;
+            list-style: none;
+            display: grid;
+            gap: 8px;
+            font-size: 15px;
+            color: #D4EFE2;
+        }
+        .grupo-texto li { display: flex; gap: 8px; align-items: baseline; }
+        .grupo-texto li::before { content: "✓"; color: #5EE59A; font-weight: 800; }
+        .botao-grupo {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            height: 52px;
+            padding: 0 20px;
+            border: 0;
+            border-radius: 12px;
+            background: var(--whatsapp);
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            text-decoration: none;
+        }
+        .botao-grupo svg { width: 22px; height: 22px; }
+        .botao-grupo:hover { background: #22C065; }
+        .link-privado {
+            display: block;
+            margin: 12px auto 0;
+            padding: 4px;
+            border: 0;
+            background: none;
+            color: #D4EFE2;
+            font-size: 14px;
+            text-decoration: underline;
+        }
+
+        /* Prévia da conversa: a oferta mais nova como o bot posta no grupo */
+        .conversa {
+            border-radius: 14px;
+            overflow: hidden;
+            background: #EFEAE2;
+            color: #111B21;
+            max-width: 380px;
+            width: 100%;
+            justify-self: center;
+        }
+        .conversa-topo {
             display: flex;
             align-items: center;
-            gap: 12px;
-            margin-top: 20px;
-            padding: 14px;
-            border-radius: 14px;
-            background: var(--whatsapp-fundo);
-            border: 1.5px solid #BFE8CF;
+            gap: 10px;
+            padding: 10px 12px;
+            background: #F0F2F5;
+            border-bottom: 1px solid #E1E3E6;
         }
-        .chamada-whatsapp .icone {
-            width: 40px;
-            height: 40px;
-            flex: none;
-            display: grid;
-            place-items: center;
-            border-radius: 50%;
-            background: var(--whatsapp);
-            color: #fff;
-        }
-        .chamada-whatsapp .icone svg { width: 22px; height: 22px; }
-        .chamada-whatsapp .texto { flex: 1; font-size: 14px; line-height: 1.35; }
-        @media (max-width: 480px) {
-            .chamada-whatsapp { flex-wrap: wrap; }
-            .chamada-whatsapp .icone { width: 34px; height: 34px; }
-            .chamada-whatsapp .texto { flex-basis: calc(100% - 46px); }
-            .chamada-whatsapp button { width: 100%; }
-        }
-        .chamada-whatsapp strong { display: block; font-size: 15px; }
-        .chamada-whatsapp button {
-            flex: none;
-            height: 40px;
-            padding: 0 14px;
-            border: 0;
-            border-radius: 10px;
-            background: var(--whatsapp);
-            color: #fff;
+        .conversa-topo .avatar svg { width: 34px; height: 34px; display: block; }
+        .conversa-topo strong { display: block; font-size: 15px; line-height: 1.2; }
+        .conversa-topo small { font-size: 12.5px; color: #667781; }
+        .conversa-corpo { padding: 14px 12px 16px; }
+        .balao {
+            position: relative;
+            max-width: 290px;
+            padding: 4px 4px 6px;
+            border-radius: 0 10px 10px 10px;
+            background: #fff;
+            box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
             font-size: 14px;
-            font-weight: 600;
+            line-height: 1.4;
         }
+        .balao::before {
+            content: "";
+            position: absolute;
+            left: -8px;
+            top: 0;
+            border: 8px solid transparent;
+            border-top-color: #fff;
+            border-right-color: #fff;
+            border-width: 0 8px 10px 0;
+        }
+        .balao img {
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            max-height: 190px;
+            object-fit: cover;
+            border-radius: 7px;
+            margin-bottom: 6px;
+        }
+        .balao p { margin: 0 6px 6px; overflow-wrap: anywhere; }
+        .balao .link-falso { color: #027EB5; }
+        .balao time {
+            display: block;
+            margin: -2px 6px 0;
+            text-align: right;
+            font-size: 11px;
+            color: #667781;
+        }
+
+        /* Botão flutuante do grupo */
+        .flutuante {
+            position: fixed;
+            right: 16px;
+            bottom: 16px;
+            z-index: 25;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            height: 52px;
+            padding: 0 18px 0 14px;
+            border: 0;
+            border-radius: 999px;
+            background: var(--whatsapp);
+            color: #fff;
+            font-size: 15px;
+            font-weight: 700;
+            text-decoration: none;
+            box-shadow: 0 6px 18px rgba(11, 79, 60, 0.35);
+        }
+        .flutuante svg { width: 24px; height: 24px; }
 
         /* ---------- Filtros ---------- */
         .filtros {
@@ -343,7 +440,7 @@
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 12px;
-            padding: 10px 0 48px;
+            padding: 10px 0 88px;
         }
 
         .oferta {
@@ -606,7 +703,7 @@
         .aviso {
             position: fixed;
             left: 50%;
-            bottom: 20px;
+            bottom: 84px;
             transform: translate(-50%, 20px);
             opacity: 0;
             padding: 12px 18px;
@@ -633,8 +730,16 @@
             .oferta .info { padding: 12px; }
             .comprar { font-size: 14px; height: 42px; }
             .compartilhar { width: 42px; height: 42px; }
-            .chamada-whatsapp { padding: 16px 18px; }
-            .chamada-whatsapp .texto { font-size: 15px; }
+        }
+        @media (min-width: 760px) {
+            .grupo-promo {
+                grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+                align-items: center;
+                gap: 32px;
+                padding: 32px;
+            }
+            .botao-grupo { width: auto; }
+            .link-privado { margin: 12px 0 0; }
         }
         @media (min-width: 960px) {
             .abertura h1 { max-width: 26ch; }
@@ -672,16 +777,16 @@
                     <span class="contador" id="contador-favoritos">0</span>
                 </button>
 
-                {% if link_bot %}
+                {% if link_grupo %}
+                <a class="botao-topo whatsapp" href="{{ link_grupo }}" target="_blank" rel="noopener">
+                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><use href="#icone-whatsapp"/></svg>
+                    <span class="rotulo">Grupo<span class="so-tela-grande"> de ofertas</span></span>
+                </a>
+                {% elif link_bot %}
                 <button type="button" class="botao-topo whatsapp" onclick="abrirJanelaWhatsapp()">
                     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><use href="#icone-whatsapp"/></svg>
                     <span class="rotulo">Receber<span class="so-tela-grande"> no WhatsApp</span></span>
                 </button>
-                {% elif link_grupo %}
-                <a class="botao-topo whatsapp" href="{{ link_grupo }}" target="_blank" rel="noopener">
-                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><use href="#icone-whatsapp"/></svg>
-                    <span class="rotulo">Grupo<span class="so-tela-grande"> no WhatsApp</span></span>
-                </a>
                 {% endif %}
             </div>
         </div>
@@ -707,17 +812,6 @@
     <div class="faixa-lojas" aria-hidden="true"></div>
 
     <main class="container">
-        {% if link_bot %}
-        <div class="chamada-whatsapp">
-            <span class="icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><use href="#icone-whatsapp"/></svg></span>
-            <div class="texto">
-                <strong>Receba as ofertas no WhatsApp</strong>
-                A cada {{ intervalo_whatsapp }} minutos, só das categorias que você escolher.
-            </div>
-            <button type="button" onclick="abrirJanelaWhatsapp()">Quero receber</button>
-        </div>
-        {% endif %}
-
         <div class="filtros">
             <div class="linha-busca">
                 <label class="busca">
@@ -772,6 +866,42 @@
     </dialog>
     {% endif %}
 
+    {% if link_grupo or link_bot %}
+    <template id="modelo-grupo">
+        <section class="grupo-promo" aria-labelledby="titulo-grupo">
+            <div class="grupo-texto">
+                <h2 id="titulo-grupo">Promoção boa acaba rápido. Receba no WhatsApp.</h2>
+                <ul>
+                    <li>Ofertas novas a cada {{ intervalo_whatsapp }} minutos, das 8h às 22h</li>
+                    <li>Amazon, Shopee e Mercado Livre num grupo só</li>
+                    <li>Grátis, e você sai quando quiser</li>
+                </ul>
+                {% if link_grupo %}
+                <a class="botao-grupo" href="{{ link_grupo }}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><use href="#icone-whatsapp"/></svg> Entrar no grupo de promoções</a>
+                {% if link_bot %}<button type="button" class="link-privado" onclick="abrirJanelaWhatsapp()">Prefere receber no privado? Escolha as categorias</button>{% endif %}
+                {% else %}
+                <button type="button" class="botao-grupo" onclick="abrirJanelaWhatsapp()"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><use href="#icone-whatsapp"/></svg> Receber ofertas no WhatsApp</button>
+                {% endif %}
+            </div>
+            <div class="conversa" aria-hidden="true">
+                <div class="conversa-topo">
+                    <span class="avatar"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="#1B2A4A"/><path d="M16 16 L16 3 A13 13 0 0 1 27.3 9.5 Z" fill="#FFD60A"/><circle cx="21.5" cy="11" r="2" fill="#EE4D2D"/></svg></span>
+                    <div><strong>Radar de Ofertas</strong><small>grupo de promoções</small></div>
+                </div>
+                <div class="conversa-corpo">
+                    <div class="balao" id="previa-oferta"></div>
+                </div>
+            </div>
+        </section>
+    </template>
+
+    {% if link_grupo %}
+    <a class="flutuante" href="{{ link_grupo }}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><use href="#icone-whatsapp"/></svg><span>Grupo de ofertas</span></a>
+    {% else %}
+    <button type="button" class="flutuante" onclick="abrirJanelaWhatsapp()"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><use href="#icone-whatsapp"/></svg><span>Receber no WhatsApp</span></button>
+    {% endif %}
+    {% endif %}
+
     <div class="aviso" id="aviso" role="status"></div>
 
     <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -781,6 +911,9 @@
     <script>
         const NOMES_CATEGORIAS = {{ categorias | tojson }};
         const NOMES_LOJAS = {{ lojas | tojson }};
+        // "na Amazon", "na Shopee", mas "no Mercado Livre"
+        const PREPOSICAO_LOJA = { mercadolivre: 'no' };
+        const naLoja = chave => `${PREPOSICAO_LOJA[chave] || 'na'} ${NOMES_LOJAS[chave] || chave || 'loja'}`;
         const LINK_BOT = {{ link_bot | tojson }};
         const ICONE_CORACAO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>';
         const ICONE_COMPARTILHAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>';
@@ -958,7 +1091,7 @@
                             ${detalhes ? `<p class="detalhes">${detalhes}</p>` : ''}
                             ${etiquetaPreco(produto.preco)}
                             <div class="acoes">
-                                <a class="comprar" href="${link}" target="_blank" rel="noopener sponsored">Ver na ${loja}</a>
+                                <a class="comprar" href="${link}" target="_blank" rel="noopener sponsored"><span class="so-tela-grande">Ver ${escaparHtml(naLoja(produto.loja))}</span><span class="so-celular">Ver oferta</span></a>
                                 <button type="button" class="compartilhar" aria-label="Compartilhar oferta"
                                         data-link="${link}" data-titulo="${titulo}"
                                         onclick="compartilhar(this.dataset.titulo, this.dataset.link)">${ICONE_COMPARTILHAR}</button>
@@ -966,6 +1099,30 @@
                         </div>
                     </article>`;
             }).join('');
+
+            inserirChamadaGrupo(vitrine);
+        }
+
+        // Coloca a chamada do grupo depois da 4ª oferta, com a prévia da oferta mais nova
+        function inserirChamadaGrupo(vitrine) {
+            const modelo = document.getElementById('modelo-grupo');
+            if (!modelo || soFavoritos) return;
+            const secao = modelo.content.firstElementChild.cloneNode(true);
+            const cartoes = vitrine.querySelectorAll('.oferta');
+            const depoisDe = cartoes[Math.min(3, cartoes.length - 1)];
+            depoisDe.after(secao);
+
+            const oferta = produtos[0];
+            if (!oferta) return;
+            const loja = escaparHtml(naLoja(oferta.loja));
+            const preco = Number(oferta.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            secao.querySelector('#previa-oferta').innerHTML = `
+                ${oferta.imagem ? `<img src="${escaparHtml(oferta.imagem)}" alt="">` : ''}
+                <p>🔥 <b>${escaparHtml(oferta.titulo)}</b></p>
+                <p>💰 <b>${preco}</b> ${loja}</p>
+                <p>🛒 Compre aqui: <span class="link-falso">${escaparHtml(oferta.link)}</span></p>
+                <time>${hora}</time>`;
         }
 
         function etiquetaPreco(preco) {

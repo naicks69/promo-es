@@ -1,0 +1,17 @@
+{
+  "name": "radar-de-ofertas-bot",
+  "version": "1.0.0",
+  "description": "Bot de WhatsApp do Radar de Ofertas: posta as promoções do site nos grupos e no privado",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "7.0.0-rc14",
+    "pino": "9.6.0"
+  }
+}
