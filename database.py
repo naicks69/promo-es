@@ -47,14 +47,24 @@ def executar(sql, parametros=(), buscar=None):
         conn.close()
 
 
+def colunas_da_tabela(tabela):
+    if USA_POSTGRES:
+        linhas = executar(
+            "SELECT column_name FROM information_schema.columns WHERE table_name = ?",
+            (tabela,),
+            buscar="todos",
+        )
+        return [l[0] for l in linhas]
+    return [c[1] for c in executar(f"PRAGMA table_info({tabela})", buscar="todos")]
+
+
 def inicializar_banco():
     # 1. Tabela de Usuários do WhatsApp
-    if not USA_POSTGRES:
-        # A versão antiga criava a coluna "telefone", mas o código grava "whatsapp_id",
-        # então nenhum cadastro chegou a ser salvo nela. Recria a tabela com a coluna certa.
-        colunas = [c[1] for c in executar("PRAGMA table_info(usuarios)", buscar="todos")]
-        if colunas and "whatsapp_id" not in colunas:
-            executar("DROP TABLE usuarios")
+    # A versão antiga criava a coluna "telefone", mas o código grava "whatsapp_id",
+    # então nenhum cadastro chegou a ser salvo nela. Recria a tabela com a coluna certa.
+    colunas = colunas_da_tabela("usuarios")
+    if colunas and "whatsapp_id" not in colunas:
+        executar("DROP TABLE usuarios")
     executar("""
         CREATE TABLE IF NOT EXISTS usuarios (
             whatsapp_id TEXT PRIMARY KEY
@@ -83,6 +93,9 @@ def inicializar_banco():
             data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    # Quantidade de vendidos na Shopee, exibida no site (coluna nova em bancos já existentes)
+    if "vendas" not in colunas_da_tabela("ofertas"):
+        executar("ALTER TABLE ofertas ADD COLUMN vendas INTEGER DEFAULT 0")
 
     # 4. Histórico de ofertas já disparadas no WhatsApp
     executar("""
@@ -103,24 +116,25 @@ def inicializar_banco():
 # OFERTAS
 # ==========================================
 
-def salvar_oferta_db(id_prod, titulo, preco, link, categoria, loja, imagem=""):
+def salvar_oferta_db(id_prod, titulo, preco, link, categoria, loja, imagem="", vendas=0):
     """Grava a oferta ou atualiza preço, link e imagem se ela já existir."""
     executar("""
-        INSERT INTO ofertas (id, titulo, preco, link, categoria, loja, imagem)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO ofertas (id, titulo, preco, link, categoria, loja, imagem, vendas)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (id) DO UPDATE SET
             titulo = excluded.titulo,
             preco = excluded.preco,
             link = excluded.link,
             categoria = excluded.categoria,
             loja = excluded.loja,
-            imagem = excluded.imagem
-    """, (id_prod, titulo, preco, link, categoria, loja, imagem))
+            imagem = excluded.imagem,
+            vendas = excluded.vendas
+    """, (id_prod, titulo, preco, link, categoria, loja, imagem, vendas))
 
 
 def buscar_ofertas_db():
     linhas = executar("""
-        SELECT id, titulo, preco, link, categoria, loja, imagem
+        SELECT id, titulo, preco, link, categoria, loja, imagem, vendas
         FROM ofertas
         WHERE link IS NOT NULL AND link != ''
         ORDER BY data_criacao DESC
@@ -136,7 +150,8 @@ def buscar_ofertas_db():
             "link": l[3],
             "categoria": l[4],
             "loja": l[5],
-            "imagem": l[6]
+            "imagem": l[6],
+            "vendas": l[7] or 0
         })
     return ofertas
 

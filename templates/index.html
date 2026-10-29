@@ -3,261 +3,732 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Radar de Ofertas | Promoções Imperdíveis</title>
+    <title>Radar de Ofertas | Promoções da Shopee</title>
+    <meta name="description" content="Produtos mais vendidos da Shopee com preço baixo, atualizados automaticamente o dia todo.">
+    <meta name="theme-color" content="#FFD60A">
 
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Ícones Lucide -->
-    <script src="https://unpkg.com/lucide@0.460.0"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --amarelo: #FFD60A;
+            --amarelo-escuro: #F2C200;
+            --vermelho: #D7192A;
+            --tinta: #1B2A4A;
+            --tinta-suave: #5A6782;
+            --linha: #E2E5EC;
+            --fundo: #F3F4F7;
+            --papel: #FFFFFF;
+            --whatsapp: #1FAF5A;
+
+            --fonte: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
+            --fonte-preco: "Barlow Condensed", "Arial Narrow", sans-serif;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            background: var(--fundo);
+            color: var(--tinta);
+            font-family: var(--fonte);
+            font-size: 16px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        img { display: block; max-width: 100%; }
+        a { color: inherit; }
+        button { font: inherit; color: inherit; cursor: pointer; }
+
+        :focus-visible {
+            outline: 3px solid var(--tinta);
+            outline-offset: 2px;
+            border-radius: 6px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 0 16px;
+        }
+
+        /* ---------- Topo ---------- */
+        .topo {
+            background: var(--amarelo);
+            position: sticky;
+            top: 0;
+            z-index: 20;
+        }
+        .topo .container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            height: 60px;
+        }
+        .marca {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            font-weight: 800;
+            font-size: 17px;
+            letter-spacing: -0.02em;
+            white-space: nowrap;
+        }
+        .marca svg { width: 30px; height: 30px; flex: none; }
+        .topo-acoes { display: flex; align-items: center; gap: 8px; }
+        .botao-topo {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            height: 40px;
+            padding: 0 14px;
+            border-radius: 999px;
+            border: 0;
+            background: var(--tinta);
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .botao-topo svg { width: 18px; height: 18px; }
+        .botao-topo.whatsapp { background: var(--whatsapp); }
+        .botao-topo.favoritos { background: rgba(27, 42, 74, 0.1); color: var(--tinta); }
+        .botao-topo.favoritos[aria-pressed="true"] { background: var(--tinta); color: #fff; }
+        .contador {
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
+            border-radius: 999px;
+            background: var(--vermelho);
+            color: #fff;
+            font-size: 12px;
+            line-height: 20px;
+            text-align: center;
+        }
+        .texto-opcional { display: none; }
+        @media (max-width: 400px) {
+            .texto-grupo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+            .botao-topo.whatsapp { padding: 0 11px; }
+        }
+
+        /* ---------- Abertura ---------- */
+        .abertura {
+            background: var(--amarelo);
+            padding: 8px 0 24px;
+            border-bottom: 4px solid var(--tinta);
+        }
+        .abertura h1 {
+            margin: 0;
+            max-width: 18ch;
+            font-size: clamp(30px, 8vw, 56px);
+            line-height: 0.98;
+            font-weight: 800;
+            letter-spacing: -0.035em;
+        }
+        .abertura p {
+            margin: 10px 0 0;
+            max-width: 46ch;
+            font-size: 16px;
+            color: #2E3B57;
+        }
+        .no-ar {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 14px;
+            font-size: 15px;
+            font-weight: 600;
+        }
+        .no-ar::before {
+            content: "";
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--vermelho);
+            box-shadow: 0 0 0 0 rgba(215, 25, 42, 0.5);
+            animation: pulso 2s infinite;
+        }
+        @keyframes pulso {
+            0% { box-shadow: 0 0 0 0 rgba(215, 25, 42, 0.5); }
+            70% { box-shadow: 0 0 0 10px rgba(215, 25, 42, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(215, 25, 42, 0); }
+        }
+
+        /* ---------- Filtros ---------- */
+        .filtros {
+            padding: 20px 0 8px;
+            display: grid;
+            gap: 12px;
+        }
+        .linha-busca { display: flex; gap: 8px; }
+        .busca {
+            position: relative;
+            flex: 1;
+        }
+        .busca svg {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            width: 18px;
+            height: 18px;
+            transform: translateY(-50%);
+            color: var(--tinta-suave);
+            pointer-events: none;
+        }
+        .busca input, .ordenar {
+            width: 100%;
+            height: 46px;
+            border: 1.5px solid var(--linha);
+            border-radius: 12px;
+            background: var(--papel);
+            color: var(--tinta);
+            font: inherit;
+            font-size: 16px;
+        }
+        .busca input { padding: 0 14px 0 42px; }
+        .busca input::placeholder { color: var(--tinta-suave); }
+        .busca input:focus, .ordenar:focus { outline: none; border-color: var(--tinta); }
+        .ordenar {
+            width: auto;
+            max-width: 40%;
+            padding: 0 8px;
+            font-size: 14px;
+        }
+
+        .categorias {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            margin: 0 -16px;
+            padding: 2px 16px 4px;
+        }
+        .categorias::-webkit-scrollbar { display: none; }
+        .chip {
+            flex: none;
+            height: 38px;
+            padding: 0 16px;
+            border-radius: 999px;
+            border: 1.5px solid var(--linha);
+            background: var(--papel);
+            font-size: 15px;
+            font-weight: 600;
+        }
+        .chip[aria-pressed="true"] {
+            background: var(--tinta);
+            border-color: var(--tinta);
+            color: #fff;
+        }
+
+        .resumo {
+            margin: 8px 0 0;
+            font-size: 14px;
+            color: var(--tinta-suave);
+        }
+
+        /* ---------- Vitrine ---------- */
+        .vitrine {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            padding: 12px 0 48px;
+        }
+
+        .oferta {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            background: var(--papel);
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid var(--linha);
+        }
+        .oferta .foto {
+            aspect-ratio: 1;
+            background: #EEF0F4;
+        }
+        .oferta .foto img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .fav {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 36px;
+            height: 36px;
+            display: grid;
+            place-items: center;
+            border: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.92);
+            color: var(--tinta);
+        }
+        .fav svg { width: 18px; height: 18px; }
+        .fav[aria-pressed="true"] { color: var(--vermelho); }
+        .fav[aria-pressed="true"] svg { fill: currentColor; }
+
+        .oferta .info {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            padding: 10px;
+            gap: 6px;
+        }
+        .oferta .titulo {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            font-size: 14px;
+            line-height: 1.35;
+            text-decoration: none;
+            min-height: 2.7em;
+        }
+        .vendidos {
+            margin: 0;
+            font-size: 12.5px;
+            color: var(--tinta-suave);
+        }
+
+        /* Etiqueta de preço no estilo encarte */
+        .etiqueta {
+            align-self: flex-start;
+            position: relative;
+            display: inline-flex;
+            align-items: flex-start;
+            margin: 6px 0 4px 2px;
+            padding: 2px 12px 2px 20px;
+            background: var(--amarelo);
+            color: var(--vermelho);
+            font-family: var(--fonte-preco);
+            font-weight: 800;
+            line-height: 1;
+            transform: rotate(-2.5deg);
+            clip-path: polygon(10px 0, 100% 0, 100% 100%, 10px 100%, 0 50%);
+        }
+        .etiqueta::before {
+            content: "";
+            position: absolute;
+            left: 9px;
+            top: 50%;
+            width: 6px;
+            height: 6px;
+            margin-top: -3px;
+            border-radius: 50%;
+            background: var(--papel);
+        }
+        .etiqueta .rs { font-size: 15px; margin: 6px 3px 0 0; }
+        .etiqueta .inteiro { font-size: 36px; letter-spacing: -0.01em; }
+        .etiqueta .centavos { font-size: 17px; margin-top: 4px; }
+
+        .acoes {
+            display: flex;
+            gap: 6px;
+            margin-top: auto;
+            padding-top: 6px;
+        }
+        .comprar {
+            flex: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 40px;
+            padding: 0 6px;
+            border-radius: 10px;
+            background: var(--tinta);
+            color: #fff;
+            font-size: 13.5px;
+            white-space: nowrap;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .comprar:hover { background: #24375F; }
+        .compartilhar {
+            width: 40px;
+            height: 40px;
+            flex: none;
+            display: grid;
+            place-items: center;
+            border: 1.5px solid var(--linha);
+            border-radius: 10px;
+            background: var(--papel);
+        }
+        .compartilhar svg { width: 18px; height: 18px; }
+
+        /* Carregando */
+        .esqueleto { pointer-events: none; }
+        .esqueleto .foto, .esqueleto .barra {
+            background: linear-gradient(90deg, #ECEEF2 0%, #F6F7F9 50%, #ECEEF2 100%);
+            background-size: 200% 100%;
+            animation: brilho 1.4s linear infinite;
+        }
+        .esqueleto .barra { height: 14px; border-radius: 6px; }
+        @keyframes brilho { to { background-position: -200% 0; } }
+
+        .vazio {
+            grid-column: 1 / -1;
+            padding: 48px 16px;
+            text-align: center;
+            color: var(--tinta-suave);
+        }
+        .vazio strong { display: block; color: var(--tinta); font-size: 18px; margin-bottom: 4px; }
+        .vazio button {
+            margin-top: 16px;
+            height: 42px;
+            padding: 0 18px;
+            border: 0;
+            border-radius: 10px;
+            background: var(--tinta);
+            color: #fff;
+            font-weight: 600;
+        }
+
+        /* ---------- Rodapé ---------- */
+        .rodape {
+            margin-top: auto;
+            background: var(--tinta);
+            color: #C9D1E3;
+            font-size: 14px;
+            padding: 28px 0;
+        }
+        .rodape p { margin: 0 0 6px; max-width: 70ch; }
+        .rodape strong { color: #fff; }
+
+        .aviso {
+            position: fixed;
+            left: 50%;
+            bottom: 20px;
+            transform: translate(-50%, 20px);
+            opacity: 0;
+            padding: 12px 18px;
+            border-radius: 12px;
+            background: var(--tinta);
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+            transition: opacity 0.2s, transform 0.2s;
+            pointer-events: none;
+            z-index: 30;
+        }
+        .aviso.visivel { opacity: 1; transform: translate(-50%, 0); }
+
+        /* ---------- Telas maiores ---------- */
+        @media (min-width: 640px) {
+            .texto-opcional { display: inline; }
+            .vitrine { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+            .oferta .titulo { font-size: 15px; }
+            .oferta .info { padding: 12px; }
+            .comprar { font-size: 14px; height: 42px; }
+            .compartilhar { width: 42px; height: 42px; }
+            .marca { font-size: 20px; }
+            .abertura { padding: 24px 0 40px; }
+            .abertura p { font-size: 17px; }
+        }
+        @media (min-width: 960px) {
+            .vitrine { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
+            .filtros {
+                grid-template-columns: minmax(0, 1fr) auto;
+                align-items: center;
+            }
+            .filtros .categorias { grid-row: 2; grid-column: 1 / -1; }
+            .ordenar { max-width: none; }
+            .oferta .info { padding: 14px; }
+            .etiqueta .inteiro { font-size: 40px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation: none !important; transition: none !important; }
+        }
+    </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen font-sans flex flex-col">
+<body>
 
-    <!-- HEADER -->
-    <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap justify-between items-center gap-4">
-            <div class="flex items-center space-x-3">
-                <div class="bg-gradient-to-r from-orange-500 to-amber-500 p-2.5 rounded-xl shadow-lg shadow-orange-500/20">
-                    <i data-lucide="zap" class="w-6 h-6 text-white"></i>
-                </div>
-                <div>
-                    <h1 class="text-xl font-bold bg-gradient-to-r from-orange-400 to-amber-200 bg-clip-text text-transparent">
-                        RadarDeOfertas
-                    </h1>
-                    <p class="text-xs text-slate-400">Promoções verificadas em tempo real</p>
-                </div>
-            </div>
+    <header class="topo">
+        <div class="container">
+            <a class="marca" href="/">
+                <svg viewBox="0 0 32 32" aria-hidden="true">
+                    <circle cx="16" cy="16" r="14" fill="#1B2A4A"/>
+                    <circle cx="16" cy="16" r="9" fill="none" stroke="#FFD60A" stroke-width="1.5" opacity=".5"/>
+                    <circle cx="16" cy="16" r="4.5" fill="none" stroke="#FFD60A" stroke-width="1.5" opacity=".5"/>
+                    <path d="M16 16 L16 2 A14 14 0 0 1 28.1 9 Z" fill="#FFD60A" opacity=".85"/>
+                    <circle cx="22" cy="11" r="2" fill="#D7192A"/>
+                </svg>
+                <span>Radar de Ofertas</span>
+            </a>
 
-            <div class="flex items-center gap-3">
-                <!-- Botão de Favoritos -->
-                <button onclick="alternarAbaFavoritos()" id="btn-favoritos-topo" class="flex items-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold px-3 py-2.5 rounded-xl transition text-sm border border-slate-600">
-                    <i data-lucide="heart" class="w-4 h-4 text-rose-400"></i>
-                    <span class="hidden sm:inline">Favoritos</span>
-                    <span id="contador-favoritos" class="bg-rose-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">0</span>
+            <div class="topo-acoes">
+                <button type="button" class="botao-topo favoritos" id="botao-favoritos" aria-pressed="false" onclick="alternarFavoritos()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                    <span class="texto-opcional">Favoritos</span>
+                    <span class="contador" id="contador-favoritos">0</span>
                 </button>
 
-                <!-- WhatsApp -->
-                <a href="https://wa.me/" target="_blank" class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2.5 rounded-xl transition shadow-lg shadow-emerald-600/30 text-sm">
-                    <i data-lucide="message-square" class="w-4 h-4"></i>
-                    <span>Entrar no WhatsApp</span>
+                {% if link_whatsapp %}
+                <a class="botao-topo whatsapp" href="{{ link_whatsapp }}" target="_blank" rel="noopener">
+                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.64.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.6.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.92-2.2-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.08c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.69.63.71.22 1.36.19 1.87.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35M12.05 21.8h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.88 9.89-9.88 2.64 0 5.12 1.03 6.99 2.9a9.82 9.82 0 0 1 2.89 6.99c0 5.45-4.44 9.88-9.88 9.88m8.41-18.3A11.81 11.81 0 0 0 12.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.94L.06 24l6.3-1.65a11.88 11.88 0 0 0 5.68 1.45h.01c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.16-3.48-8.41"/></svg>
+                    <span class="texto-grupo">Grupo<span class="texto-opcional"> no WhatsApp</span></span>
                 </a>
+                {% endif %}
             </div>
         </div>
     </header>
 
-  <!-- HERO SECTION (COM DESTAQUE NAS CORES DAS LOJAS) -->
-    <section class="bg-gradient-to-b from-slate-800/50 to-slate-900 border-b border-slate-800/80 py-12 px-4">
-        <div class="max-w-3xl mx-auto text-center space-y-4">
-            
-            <!-- Badge Discreto -->
-            <div>
-                <span class="inline-flex items-center gap-1.5 py-1 px-3.5 rounded-full text-xs font-medium bg-slate-800 text-orange-400 border border-slate-700/80 shadow-sm">
-                    <i data-lucide="flame" class="w-3.5 h-3.5 text-orange-400"></i>
-                    <span>Monitoramento em tempo real</span>
-                </span>
-            </div>
-
-            <!-- Título Principal com Destaque nas Cores das Lojas -->
-            <h2 class="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-tight">
-                As melhores ofertas da 
-                <span class="text-[#FF9900]">Amazon</span>, 
-                <span class="text-[#EE4D2D]">Shopee</span> e 
-                <span class="text-[#FFE600]">Mercado Livre</span>
-            </h2>
-
-            <!-- Subtítulo Suave -->
-            <p class="text-slate-400 text-sm sm:text-base max-w-xl mx-auto font-normal leading-relaxed">
-                Acompanhe em tempo real as maiores promoções verificadas e economize nas suas compras.
-            </p>
-
+    <section class="abertura">
+        <div class="container">
+            <h1>Achados da Shopee com preço de encarte</h1>
+            <p>Os produtos mais vendidos com preço baixo, conferidos o dia todo. Toque na oferta e compre direto na Shopee.</p>
+            <div class="no-ar" id="no-ar" aria-live="polite">Buscando ofertas…</div>
         </div>
     </section>
 
-    <!-- BARRA DE FILTROS COM MENUS SELECT -->
-    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            
-            <!-- 1. Campo de Busca -->
-            <div class="relative w-full">
-                <i data-lucide="search" class="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                <input type="text" id="input-busca" onkeyup="aplicarFiltros()" placeholder="Buscar produto..." 
-                       class="w-full bg-slate-800 border border-slate-700 text-slate-200 placeholder-slate-400 text-sm rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-orange-500 transition">
-            </div>
-
-            <!-- 2. Select de Categorias -->
-            <div class="w-full">
-                <select id="select-categoria" onchange="aplicarFiltros()" class="w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-xl px-4 py-3 focus:outline-none focus:border-orange-500 transition cursor-pointer">
-                    <option value="todas">📦 Todas as Categorias</option>
-                    <option value="casa">🏠 Casa</option>
-                    <option value="eletronicos">📱 Eletrônicos</option>
-                    <option value="gamer">🎮 Gamer</option>
-                    <option value="moda">👕 Moda</option>
+    <main class="container">
+        <div class="filtros">
+            <div class="linha-busca">
+                <label class="busca">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                    <input type="search" id="busca" placeholder="Buscar" aria-label="Buscar produto" oninput="aplicarFiltros()">
+                </label>
+                <select id="ordenar" class="ordenar" aria-label="Ordenar ofertas" onchange="aplicarFiltros()">
+                    <option value="recentes">Mais recentes</option>
+                    <option value="vendidos">Mais vendidos</option>
+                    <option value="menor-preco">Menor preço</option>
+                    <option value="maior-preco">Maior preço</option>
                 </select>
             </div>
-
-            <!-- 3. Select de Lojas -->
-            <div class="w-full">
-                <select id="select-loja" onchange="aplicarFiltros()" class="w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-xl px-4 py-3 focus:outline-none focus:border-orange-500 transition cursor-pointer">
-                    <option value="todas">🏪 Todas as Lojas</option>
-                    <option value="amazon">Amazon</option>
-                    <option value="shopee">Shopee</option>
-                    <option value="mercadolivre">Mercado Livre</option>
-                </select>
-            </div>
-
-            <!-- 4. Select de Ordenação de Preço -->
-            <div class="w-full">
-                <select id="select-ordenar" onchange="aplicarFiltros()" class="w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-xl px-4 py-3 focus:outline-none focus:border-orange-500 transition cursor-pointer">
-                    <option value="recentes">🔥 Mais Recentes</option>
-                    <option value="menor-preco">📉 Menor Preço</option>
-                    <option value="maior-preco">📈 Maior Preço</option>
-                </select>
-            </div>
-
+            <div class="categorias" id="categorias" role="group" aria-label="Categorias"></div>
         </div>
+        <p class="resumo" id="resumo"></p>
 
-        <!-- GRELHA DE PRODUTOS -->
-        <div id="grid-produtos" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
-    </section>
+        <div class="vitrine" id="vitrine" aria-live="polite"></div>
+    </main>
 
-    <!-- FOOTER -->
-    <footer class="mt-auto bg-slate-800 border-t border-slate-800 py-6 text-center text-xs text-slate-500">
-        <p>© 2026 RadarDeOfertas - Todos os direitos reservados.</p>
+    <footer class="rodape">
+        <div class="container">
+            <p><strong>Radar de Ofertas</strong></p>
+            <p>Os preços podem mudar na Shopee a qualquer momento. Confira o valor final antes de comprar.</p>
+            <p>Somos afiliados da Shopee: podemos receber uma comissão pelas compras feitas pelos nossos links, sem custo extra para você.</p>
+        </div>
     </footer>
 
-    <!-- SCRIPT DE FUNCIONALIDADES -->
+    <div class="aviso" id="aviso" role="status"></div>
+
     <script>
-        let todosOsProdutos = [];
-        let apenasFavoritos = false;
-        let favoritos = JSON.parse(localStorage.getItem('favoritos') || '[]');
+        const NOMES_CATEGORIAS = {
+            casa: 'Casa',
+            eletronicos: 'Eletrônicos',
+            gamer: 'Gamer',
+            moda: 'Moda',
+        };
+        const NOMES_LOJAS = { shopee: 'Shopee', amazon: 'Amazon', mercadolivre: 'Mercado Livre' };
+        const ICONE_CORACAO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>';
+        const ICONE_COMPARTILHAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>';
+
+        let produtos = [];
+        let ultimaResposta = '';
+        let carregou = false;
+        let categoriaAtual = 'todas';
+        let soFavoritos = false;
+        let favoritos = lerFavoritos();
+
+        function lerFavoritos() {
+            try { return JSON.parse(localStorage.getItem('favoritos') || '[]'); }
+            catch (e) { return []; }
+        }
+
+        function gravarFavoritos() {
+            try { localStorage.setItem('favoritos', JSON.stringify(favoritos)); } catch (e) {}
+        }
 
         async function carregarOfertas() {
             try {
                 const resposta = await fetch('/api/ofertas');
                 if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
-                todosOsProdutos = await resposta.json();
+                const texto = await resposta.text();
+                carregou = true;
+                if (texto === ultimaResposta) return; // Nada mudou: não redesenha a vitrine
+                ultimaResposta = texto;
+                produtos = JSON.parse(texto);
+                montarCategorias();
                 aplicarFiltros();
-                atualizarContadorFavoritos();
             } catch (erro) {
-                console.error("Erro ao carregar ofertas:", erro);
+                console.error('Erro ao carregar ofertas:', erro);
+                if (!carregou) {
+                    document.getElementById('no-ar').textContent = 'Sem conexão com o servidor';
+                    document.getElementById('vitrine').innerHTML = `
+                        <div class="vazio">
+                            <strong>Não foi possível carregar as ofertas</strong>
+                            Verifique sua internet e tente de novo.
+                            <br><button type="button" onclick="carregarOfertas()">Tentar de novo</button>
+                        </div>`;
+                }
             }
+        }
+
+        function montarCategorias() {
+            const existentes = [...new Set(produtos.map(p => p.categoria).filter(Boolean))];
+            if (categoriaAtual !== 'todas' && !existentes.includes(categoriaAtual)) categoriaAtual = 'todas';
+            const opcoes = [['todas', 'Tudo'], ...existentes.map(c => [c, NOMES_CATEGORIAS[c] || c])];
+            document.getElementById('categorias').innerHTML = opcoes.map(([valor, nome]) => `
+                <button type="button" class="chip" data-categoria="${escaparHtml(valor)}"
+                        aria-pressed="${valor === categoriaAtual}"
+                        onclick="escolherCategoria(this.dataset.categoria)">${escaparHtml(nome)}</button>
+            `).join('');
+        }
+
+        function escolherCategoria(categoria) {
+            categoriaAtual = categoria;
+            document.querySelectorAll('.chip').forEach(chip => {
+                chip.setAttribute('aria-pressed', chip.dataset.categoria === categoria);
+            });
+            aplicarFiltros();
         }
 
         function aplicarFiltros() {
-            let lista = [...todosOsProdutos];
-            const texto = document.getElementById('input-busca').value.toLowerCase();
-            const categoriaSelecionada = document.getElementById('select-categoria').value;
-            const lojaSelecionada = document.getElementById('select-loja').value;
-            const ordenacao = document.getElementById('select-ordenar').value;
+            let lista = [...produtos];
+            const texto = document.getElementById('busca').value.trim().toLowerCase();
+            const ordenacao = document.getElementById('ordenar').value;
 
-            // Filtro por texto
-            if (texto) {
-                lista = lista.filter(p => p.titulo.toLowerCase().includes(texto));
-            }
+            if (texto) lista = lista.filter(p => (p.titulo || '').toLowerCase().includes(texto));
+            if (categoriaAtual !== 'todas') lista = lista.filter(p => p.categoria === categoriaAtual);
+            if (soFavoritos) lista = lista.filter(p => favoritos.includes(p.id));
 
-            // Filtro por categoria
-            if (categoriaSelecionada !== 'todas') {
-                lista = lista.filter(p => p.categoria === categoriaSelecionada);
-            }
+            if (ordenacao === 'menor-preco') lista.sort((a, b) => a.preco - b.preco);
+            else if (ordenacao === 'maior-preco') lista.sort((a, b) => b.preco - a.preco);
+            else if (ordenacao === 'vendidos') lista.sort((a, b) => (b.vendas || 0) - (a.vendas || 0));
 
-            // Filtro por loja
-            if (lojaSelecionada !== 'todas') {
-                lista = lista.filter(p => p.loja === lojaSelecionada);
-            }
+            document.getElementById('no-ar').textContent =
+                produtos.length === 1 ? '1 oferta no ar agora' : `${produtos.length} ofertas no ar agora`;
+            document.getElementById('resumo').textContent = soFavoritos
+                ? `Mostrando seus favoritos (${lista.length})`
+                : (texto || categoriaAtual !== 'todas' ? `${lista.length} resultado(s)` : '');
+            document.getElementById('contador-favoritos').textContent = favoritos.length;
 
-            // Filtro por favoritos
-            if (apenasFavoritos) {
-                lista = lista.filter(p => favoritos.includes(p.id));
-            }
-
-            // Ordenação
-            if (ordenacao === 'menor-preco') {
-                lista.sort((a, b) => a.preco - b.preco);
-            } else if (ordenacao === 'maior-preco') {
-                lista.sort((a, b) => b.preco - a.preco);
-            }
-
-            renderizarProdutos(lista);
+            renderizar(lista);
         }
 
-        function renderizarProdutos(lista) {
-            const grid = document.getElementById('grid-produtos');
-            grid.innerHTML = '';
+        function renderizar(lista) {
+            const vitrine = document.getElementById('vitrine');
 
             if (lista.length === 0) {
-                grid.innerHTML = `
-                    <div class="col-span-full text-center py-16 text-slate-500">
-                        <i data-lucide="package-x" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
-                        <p>Nenhuma promoção encontrada com os filtros selecionados.</p>
-                    </div>`;
-                desenharIcones();
+                let titulo = 'Nenhuma oferta com esses filtros';
+                let dica = 'Tente outra palavra ou escolha "Tudo" nas categorias.';
+                if (soFavoritos) {
+                    titulo = 'Você ainda não tem favoritos';
+                    dica = 'Toque no coração de uma oferta para guardá-la aqui.';
+                } else if (produtos.length === 0) {
+                    titulo = 'As ofertas estão chegando';
+                    dica = 'O radar está buscando promoções na Shopee. Volte em alguns minutos.';
+                }
+                vitrine.innerHTML = `<div class="vazio"><strong>${titulo}</strong>${dica}</div>`;
                 return;
             }
 
-            const nomesLojas = { shopee: 'Shopee', amazon: 'Amazon', mercadolivre: 'Mercado Livre' };
-
-            grid.innerHTML = lista.map(produto => {
-                const isFav = favoritos.includes(produto.id);
+            vitrine.innerHTML = lista.map(produto => {
                 const id = escaparHtml(produto.id);
                 const titulo = escaparHtml(produto.titulo);
                 const link = escaparHtml(produto.link);
-                const preco = Number(produto.preco);
-                const precoTexto = isNaN(preco) ? '--' : preco.toFixed(2).replace('.', ',');
-                const nomeLoja = nomesLojas[produto.loja] || produto.loja || 'Loja';
+                const loja = escaparHtml(NOMES_LOJAS[produto.loja] || produto.loja || 'loja');
+                const favorito = favoritos.includes(produto.id);
+                const vendidos = textoVendidos(produto.vendas);
                 return `
-                    <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl overflow-hidden flex flex-col justify-between hover:border-slate-600 transition shadow-lg group">
-                        <div>
-                            <!-- Imagem e Botão Favorito -->
-                            <div class="relative h-48 bg-slate-900 overflow-hidden">
-                                <a href="${link}" target="_blank" rel="noopener sponsored">
-                                    <img src="${escaparHtml(produto.imagem || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&q=80')}" alt="${titulo}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
-                                </a>
-                                <button data-id="${id}" onclick="toggleFavorito(this.dataset.id)" class="absolute top-3 right-3 bg-slate-900/80 hover:bg-slate-900 p-2 rounded-xl backdrop-blur-sm transition border border-slate-700">
-                                    <i data-lucide="heart" class="w-4 h-4 ${isFav ? 'text-rose-500 fill-rose-500' : 'text-slate-300'}"></i>
-                                </button>
-                                <span class="absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur-sm text-slate-200 text-[10px] font-bold uppercase px-2.5 py-1 rounded-lg border border-slate-700">
-                                    ${escaparHtml(nomeLoja)}
-                                </span>
-                            </div>
-
-                            <div class="p-5">
-                                <div class="mb-2">
-                                    <span class="text-orange-400 text-[10px] font-bold uppercase tracking-wider">${escaparHtml(produto.categoria)}</span>
-                                </div>
-                                <h3 class="font-semibold text-slate-200 group-hover:text-orange-400 transition text-sm sm:text-base line-clamp-2 mb-4">
-                                    ${titulo}
-                                </h3>
+                    <article class="oferta">
+                        <a class="foto" href="${link}" target="_blank" rel="noopener sponsored" tabindex="-1" aria-hidden="true">
+                            ${produto.imagem ? `<img src="${escaparHtml(produto.imagem)}" alt="" loading="lazy">` : ''}
+                        </a>
+                        <button type="button" class="fav" data-id="${id}" aria-pressed="${favorito}"
+                                aria-label="${favorito ? 'Remover dos favoritos' : 'Salvar nos favoritos'}"
+                                onclick="alternarFavorito(this.dataset.id)">${ICONE_CORACAO}</button>
+                        <div class="info">
+                            <a class="titulo" href="${link}" target="_blank" rel="noopener sponsored">${titulo}</a>
+                            ${vendidos ? `<p class="vendidos">${vendidos}</p>` : ''}
+                            ${etiquetaPreco(produto.preco)}
+                            <div class="acoes">
+                                <a class="comprar" href="${link}" target="_blank" rel="noopener sponsored">Ver na ${loja}</a>
+                                <button type="button" class="compartilhar" aria-label="Compartilhar oferta"
+                                        data-link="${link}" data-titulo="${titulo}"
+                                        onclick="compartilhar(this.dataset.titulo, this.dataset.link)">${ICONE_COMPARTILHAR}</button>
                             </div>
                         </div>
-
-                        <div class="p-5 pt-0">
-                            <div class="mb-4 flex items-baseline justify-between">
-                                <div>
-                                    <span class="text-[10px] text-slate-400 block">Por apenas</span>
-                                    <div class="text-2xl font-black text-emerald-400 tracking-tight">
-                                        R$ ${precoTexto}
-                                    </div>
-                                </div>
-                                <button data-link="${link}" onclick="copiarLink(this.dataset.link)" title="Copiar link" class="bg-slate-700/50 hover:bg-slate-700 text-slate-300 p-2.5 rounded-xl transition border border-slate-700">
-                                    <i data-lucide="copy" class="w-4 h-4"></i>
-                                </button>
-                            </div>
-
-                            <a href="${link}" target="_blank" rel="noopener sponsored"
-                               class="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-orange-500/20 transition text-sm">
-                                <span>Comprar na ${escaparHtml(nomeLoja)}</span>
-                                <i data-lucide="external-link" class="w-4 h-4"></i>
-                            </a>
-                        </div>
-                    </div>
-                `;
+                    </article>`;
             }).join('');
-
-            desenharIcones();
         }
 
-        // Se a biblioteca de ícones não carregar, o site continua mostrando os produtos
-        function desenharIcones() {
-            if (window.lucide) lucide.createIcons();
+        function etiquetaPreco(preco) {
+            const valor = Number(preco);
+            if (preco === null || preco === undefined || isNaN(valor)) return '';
+            const [inteiro, centavos] = valor.toFixed(2).split('.');
+            const inteiroFormatado = Number(inteiro).toLocaleString('pt-BR');
+            return `
+                <div class="etiqueta" aria-label="Preço: ${inteiroFormatado} reais e ${centavos} centavos">
+                    <span class="rs" aria-hidden="true">R$</span>
+                    <span class="inteiro" aria-hidden="true">${inteiroFormatado}</span>
+                    <span class="centavos" aria-hidden="true">,${centavos}</span>
+                </div>`;
+        }
+
+        function textoVendidos(vendas) {
+            const n = Number(vendas) || 0;
+            if (n <= 0) return '';
+            if (n >= 1000) {
+                const mil = (n / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+                return `${mil} mil vendidos`;
+            }
+            return n === 1 ? '1 vendido' : `${n} vendidos`;
+        }
+
+        function alternarFavorito(id) {
+            const jaEra = favoritos.includes(id);
+            favoritos = jaEra ? favoritos.filter(f => f !== id) : [...favoritos, id];
+            gravarFavoritos();
+            aplicarFiltros();
+            mostrarAviso(jaEra ? 'Removido dos favoritos' : 'Salvo nos favoritos');
+        }
+
+        function alternarFavoritos() {
+            soFavoritos = !soFavoritos;
+            document.getElementById('botao-favoritos').setAttribute('aria-pressed', soFavoritos);
+            aplicarFiltros();
+        }
+
+        async function compartilhar(titulo, link) {
+            const texto = document.createElement('textarea');
+            texto.innerHTML = titulo; // desfaz o escape do HTML
+            const nome = texto.value;
+            if (navigator.share) {
+                try {
+                    await navigator.share({ title: nome, text: `Olha essa oferta: ${nome}`, url: link });
+                    return;
+                } catch (e) {
+                    if (e.name === 'AbortError') return; // pessoa fechou o menu de compartilhar
+                }
+            }
+            try {
+                await navigator.clipboard.writeText(link);
+                mostrarAviso('Link copiado');
+            } catch (e) {
+                window.prompt('Copie o link da oferta:', link);
+            }
+        }
+
+        let temporizadorAviso;
+        function mostrarAviso(mensagem) {
+            const aviso = document.getElementById('aviso');
+            aviso.textContent = mensagem;
+            aviso.classList.add('visivel');
+            clearTimeout(temporizadorAviso);
+            temporizadorAviso = setTimeout(() => aviso.classList.remove('visivel'), 1800);
         }
 
         // Evita que aspas ou símbolos no nome do produto quebrem o card
@@ -270,49 +741,25 @@
                 .replace(/'/g, '&#39;');
         }
 
-        function toggleFavorito(id) {
-            if (favoritos.includes(id)) {
-                favoritos = favoritos.filter(f => f !== id);
-            } else {
-                favoritos.push(id);
-            }
-            localStorage.setItem('favoritos', JSON.stringify(favoritos));
-            atualizarContadorFavoritos();
-            aplicarFiltros();
+        function mostrarCarregando() {
+            const cartao = `
+                <div class="oferta esqueleto" aria-hidden="true">
+                    <div class="foto"></div>
+                    <div class="info">
+                        <div class="barra"></div>
+                        <div class="barra" style="width:60%"></div>
+                        <div class="barra" style="width:45%;height:30px;margin-top:8px"></div>
+                    </div>
+                </div>`;
+            document.getElementById('vitrine').innerHTML = cartao.repeat(8);
         }
 
-        function alternarAbaFavoritos() {
-            apenasFavoritos = !apenasFavoritos;
-            const btn = document.getElementById('btn-favoritos-topo');
-            if (apenasFavoritos) {
-                btn.classList.add('border-rose-500', 'bg-rose-500/10');
-            } else {
-                btn.classList.remove('border-rose-500', 'bg-rose-500/10');
-            }
-            aplicarFiltros();
-        }
-
-        function atualizarContadorFavoritos() {
-            document.getElementById('contador-favoritos').innerText = favoritos.length;
-        }
-
-        function copiarLink(link) {
-            navigator.clipboard.writeText(link);
-            alert('Link de afiliado copiado!');
-        }
-
-        // Inicia assim que a página é carregada
-        document.addEventListener("DOMContentLoaded", () => {
-            desenharIcones();
+        document.addEventListener('DOMContentLoaded', () => {
+            mostrarCarregando();
             carregarOfertas();
-
-            // ATUALIZAÇÃO AUTOMÁTICA DA TELA:
-            // Faz o site buscar novas ofertas da API a cada 30 segundos sozinho!
-            setInterval(() => {
-                carregarOfertas();
-            }, 30000); 
+            // Busca novas ofertas a cada 30 segundos; só redesenha se algo mudou
+            setInterval(carregarOfertas, 30000);
         });
-        
     </script>
 </body>
 </html>
