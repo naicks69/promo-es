@@ -30,10 +30,23 @@ def api_ofertas():
 
 @app.route("/forcar-atualizacao")
 def forcar_atualizacao():
-    """Rota manual para testar e forçar a busca de ofertas na hora."""
+    """Rota manual para forçar a busca e salvar os produtos no banco de dados imediatamente."""
     try:
         ofertas = buscar_ofertas_afiliados()
-        return f"🔄 Busca forçada executada com sucesso! O bot encontrou {len(ofertas)} produtos e atualizou o sistema."
+        
+        # Salva cada produto encontrado no banco de dados SQLite
+        for oferta in ofertas:
+            salvar_oferta_db(
+                oferta["id"],
+                oferta["titulo"],
+                oferta["preco"],
+                oferta["link"],
+                oferta["categoria"],
+                oferta.get("loja", "shopee"),
+                oferta.get("imagem", "")
+            )
+            
+        return f"🔄 Busca forçada executada com sucesso! O bot encontrou {len(ofertas)} produtos e salvou-os no banco de dados."
     except Exception as e:
         return f"❌ Erro ao forçar atualização: {e}", 500
 
