@@ -14,18 +14,43 @@ SHOPEE_API_URL = "https://open-api.affiliate.shopee.com.br/graphql"
 # Quantos produtos trazer por palavra-chave em cada varredura
 PRODUTOS_POR_BUSCA = int(os.getenv("PRODUTOS_POR_BUSCA", "6"))
 
+# A cada varredura o bot lê a página seguinte dos resultados (1, 2, 3... e volta à 1),
+# para trazer produtos diferentes a cada ciclo em vez de repetir sempre os mesmos.
+PAGINAS_ROTACAO = int(os.getenv("PAGINAS_ROTACAO", "10"))
+
+# Lojas que o site exibe. A ordem aqui é a ordem dos botões no site.
+LOJAS = {
+    "amazon": "Amazon",
+    "shopee": "Shopee",
+    "mercadolivre": "Mercado Livre",
+}
+
+# Categorias do site e do WhatsApp (chave interna -> nome exibido)
+CATEGORIAS = {
+    "casa": "Casa",
+    "eletronicos": "Eletrônicos",
+    "gamer": "Gamer",
+    "moda": "Moda",
+}
+
 # O que o bot procura na Shopee e em qual categoria do site cada resultado entra.
 # Para acrescentar produtos novos, basta incluir uma linha aqui.
 BUSCAS_SHOPEE = [
     {"palavra_chave": "garrafa térmica", "categoria": "casa"},
     {"palavra_chave": "organizador cozinha", "categoria": "casa"},
+    {"palavra_chave": "luminária led", "categoria": "casa"},
     {"palavra_chave": "fone bluetooth", "categoria": "eletronicos"},
     {"palavra_chave": "smartwatch", "categoria": "eletronicos"},
+    {"palavra_chave": "carregador turbo", "categoria": "eletronicos"},
     {"palavra_chave": "mouse gamer", "categoria": "gamer"},
     {"palavra_chave": "headset gamer", "categoria": "gamer"},
+    {"palavra_chave": "teclado gamer", "categoria": "gamer"},
     {"palavra_chave": "camiseta masculina", "categoria": "moda"},
     {"palavra_chave": "óculos de sol", "categoria": "moda"},
+    {"palavra_chave": "tênis feminino", "categoria": "moda"},
 ]
+
+_ciclo_atual = 0
 
 
 def credenciais_configuradas():
@@ -84,14 +109,14 @@ def gerar_link_afiliado_shopee(link_original):
     return (dados.get("generateShortLink") or {}).get("shortLink")
 
 
-def buscar_produtos_shopee(palavra_chave, categoria, limite=PRODUTOS_POR_BUSCA):
+def buscar_produtos_shopee(palavra_chave, categoria, limite=PRODUTOS_POR_BUSCA, pagina=1):
     """Procura produtos reais na Shopee e já devolve o link de afiliado de cada um.
 
     O campo offerLink da API é o link de afiliado que leva direto à página do
     produto, com a comissão rastreada.
     """
     query = f"""{{
-    productOfferV2(keyword: {json.dumps(palavra_chave, ensure_ascii=False)}, sortType: 2, page: 1, limit: {int(limite)}) {{
+    productOfferV2(keyword: {json.dumps(palavra_chave, ensure_ascii=False)}, sortType: 2, page: {int(pagina)}, limit: {int(limite)}) {{
         nodes {{
             itemId
             shopId
@@ -145,18 +170,18 @@ def buscar_produtos_shopee(palavra_chave, categoria, limite=PRODUTOS_POR_BUSCA):
     return ofertas
 
 
-def buscar_ofertas_afiliados():
-    """Percorre todas as buscas configuradas e devolve as ofertas com link de afiliado."""
+def buscar_ofertas_shopee(pagina):
+    """Percorre as buscas da Shopee e devolve as ofertas com link de afiliado."""
     if not credenciais_configuradas():
-        print("⚠️ SHOPEE_APP_ID e SHOPEE_SECRET não configurados. Nenhuma oferta será buscada.")
+        print("⚠️ SHOPEE_APP_ID e SHOPEE_SECRET não configurados. Nenhuma oferta da Shopee será buscada.")
         return []
 
     todas_as_ofertas = []
     ids_vistos = set()
 
     for busca in BUSCAS_SHOPEE:
-        ofertas = buscar_produtos_shopee(busca["palavra_chave"], busca["categoria"])
-        print(f"🔎 '{busca['palavra_chave']}': {len(ofertas)} produtos com link de afiliado")
+        ofertas = buscar_produtos_shopee(busca["palavra_chave"], busca["categoria"], pagina=pagina)
+        print(f"🔎 Shopee '{busca['palavra_chave']}' (página {pagina}): {len(ofertas)} produtos com link de afiliado")
 
         for oferta in ofertas:
             # O mesmo produto pode aparecer em duas buscas diferentes
@@ -166,6 +191,29 @@ def buscar_ofertas_afiliados():
             todas_as_ofertas.append(oferta)
 
         time.sleep(1)  # Pausa entre consultas para não estourar o limite da API
+
+    return todas_as_ofertas
+
+
+# Cada loja integrada entra nesta lista com a sua função de busca
+FONTES_DE_OFERTAS = [
+    ("shopee", buscar_ofertas_shopee),
+]
+
+
+def buscar_ofertas_afiliados():
+    """Busca as ofertas de todas as lojas integradas, avançando uma página por ciclo."""
+    global _ciclo_atual
+    pagina = _ciclo_atual % PAGINAS_ROTACAO + 1
+    _ciclo_atual += 1
+
+    todas_as_ofertas = []
+    for loja, buscar in FONTES_DE_OFERTAS:
+        try:
+            todas_as_ofertas.extend(buscar(pagina))
+        except Exception as e:
+            # Uma loja com problema não impede as outras de atualizarem
+            print(f"❌ Erro ao buscar ofertas da loja {loja}: {e}")
 
     print(f"Total de produtos com link de afiliado: {len(todas_as_ofertas)}")
     return todas_as_ofertas
