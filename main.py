@@ -21,6 +21,9 @@ inicializar_banco()
 # com o endereço público do bot (127.0.0.1 só funciona se o bot rodar no mesmo servidor).
 NODE_SERVER_URL = os.getenv("WHATSAPP_BOT_URL", "http://127.0.0.1:3000/send-promo")
 
+# Link de convite do grupo/canal de WhatsApp exibido no site (ex.: https://chat.whatsapp.com/...)
+LINK_GRUPO_WHATSAPP = os.getenv("WHATSAPP_LINK", "")
+
 # Intervalo entre varreduras (segundos) e limite de ofertas novas disparadas por ciclo
 INTERVALO_VARREDURA = int(os.getenv("INTERVALO_VARREDURA", "300"))
 MAX_ENVIOS_POR_CICLO = int(os.getenv("MAX_ENVIOS_POR_CICLO", "3"))
@@ -39,7 +42,7 @@ trava_varredura = threading.Lock()
 
 @app.route("/")
 def home():
-    return render_template("index.html")
+    return render_template("index.html", link_whatsapp=LINK_GRUPO_WHATSAPP)
 
 
 @app.route("/api/ofertas", methods=["GET"])
@@ -100,7 +103,8 @@ def salvar_ofertas(ofertas):
             oferta["link"],
             oferta["categoria"],
             oferta.get("loja", "shopee"),
-            oferta.get("imagem", "")
+            oferta.get("imagem", ""),
+            oferta.get("vendas", 0)
         )
     return len(ofertas)
 

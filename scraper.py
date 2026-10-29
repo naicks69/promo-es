@@ -139,6 +139,7 @@ def buscar_produtos_shopee(palavra_chave, categoria, limite=PRODUTOS_POR_BUSCA):
             "categoria": categoria,
             "loja": "shopee",
             "imagem": produto.get("imageUrl") or "",
+            "vendas": int(produto.get("sales") or 0),
         })
 
     return ofertas
