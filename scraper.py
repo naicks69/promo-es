@@ -46,42 +46,53 @@ def gerar_link_afiliado_shopee(link_original):
 
 
 def buscar_ofertas_mercadolivre_auto(termo="ofertas"):
-    """Busca produtos automaticamente na API pública do Mercado Livre."""
+    """Busca produtos automaticamente na API pública do Mercado Livre com User-Agent."""
     url = f"https://api.mercadolibre.com/sites/MLB/search?q={termo}&limit=5"
+    
+    # Cabeçalho essencial para evitar bloqueios da API
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
+    
     ofertas = []
     try:
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, headers=headers, timeout=10)
         data = response.json()
+        
         for item in data.get("results", []):
             link_original = item.get("permalink")
-            # Aplica o ID de afiliado do Mercado Livre automaticamente
             link_afiliado = f"{link_original}?matt_tool={MERCADO_LIVRE_AFFILIATE_ID}" if MERCADO_LIVRE_AFFILIATE_ID else link_original
             
+            # Corrige o link da imagem para HTTPS
+            imagem_original = item.get("thumbnail", "")
+            imagem_segura = imagem_original.replace("http:", "https:") if imagem_original else ""
+
             ofertas.append({
                 "id": f"ML_{item.get('id')}",
                 "titulo": item.get("title"),
                 "preco": item.get("price"),
                 "link": link_afiliado,
-                "categoria": "geral",
+                "categoria": "eletronicos",
                 "loja": "mercadolivre",
-                "imagem": item.get("thumbnail").replace("http:", "https:")
+                "imagem": imagem_segura
             })
     except Exception as e:
-        print(f"Erro ao buscar Mercado Livre: {e}")
+        print(f"Erro ao buscar Mercado Livre para o termo '{termo}': {e}")
+        
     return ofertas
 
 
 def buscar_ofertas_afiliados():
-    """Função central que roda periodicamente para puxar novidades de forma autônoma."""
+    """Função central que recolhe novidades de forma autónoma."""
     todas_as_ofertas = []
 
-    # 1. Puxa automaticamente do Mercado Livre com base em termos de busca populares
-    termos_busca = ["smartphone", "fone bluetooth", "smartwatch", "eletroportateis"]
+    # Termos de busca amplos para garantir que a API traga resultados
+    termos_busca = ["smartphone", "notebook", "fone", "smartwatch"]
+    
     for termo in termos_busca:
         produtos_ml = buscar_ofertas_mercadolivre_auto(termo)
         todas_as_ofertas.extend(produtos_ml)
+        time.sleep(1) # Pausa curta entre requisições para evitar limites de taxa
 
-    # 2. Aqui você pode adicionar lógica semelhante para Shopee/Amazon via API de busca ou listagens automatizadas.
-    
     print(f"Total de ofertas puxadas automaticamente: {len(todas_as_ofertas)}")
     return todas_as_ofertas
