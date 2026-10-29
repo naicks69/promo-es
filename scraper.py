@@ -4,18 +4,19 @@ import os
 import requests
 from dotenv import load_dotenv
 
-# Carrega as chaves do arquivo .env se ele existir
 load_dotenv()
 
-# --- CONFIGURAÇÕES DAS APIS DE AFILIADOS ---
-SHOPEE_APP_ID = os.getenv("SHOPEE_APP_ID", "seu_app_id_aqui")
-SHOPEE_SECRET = os.getenv("SHOPEE_SECRET", "seu_secret_aqui")
-AMAZON_TAG = os.getenv("AMAZON_TAG", "seu_tag-20")
-MERCADO_LIVRE_AFFILIATE_ID = os.getenv("ML_AFFILIATE_ID", "seu_id_afiliado_ml")
+SHOPEE_APP_ID = os.getenv("SHOPEE_APP_ID", "")
+SHOPEE_SECRET = os.getenv("SHOPEE_SECRET", "")
+AMAZON_TAG = os.getenv("AMAZON_TAG", "")
+MERCADO_LIVRE_AFFILIATE_ID = os.getenv("ML_AFFILIATE_ID", "")
 
 
 def gerar_link_afiliado_shopee(link_original):
-    """Converte um link comum da Shopee em link de afiliado rastreável via API GraphQL."""
+    """Converte automaticamente qualquer link da Shopee em link rastreável."""
+    if not SHOPEE_APP_ID or not SHOPEE_SECRET:
+        return link_original
+        
     url_api = "https://open-api.affiliate.shopee.com.br/graphql"
     timestamp = int(time.time())
 
@@ -27,16 +28,12 @@ def gerar_link_afiliado_shopee(link_original):
     }}
     """
     payload = {"query": query}
-
     signature_base = f"{SHOPEE_APP_ID}{timestamp}{query}{SHOPEE_SECRET}"
     signature = hashlib.sha256(signature_base.encode("utf-8")).hexdigest()
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": (
-            f"SHA256 Credential={SHOPEE_APP_ID},"
-            f" Timestamp={timestamp}, Signature={signature}"
-        ),
+        "Authorization": f"SHA256 Credential={SHOPEE_APP_ID}, Timestamp={timestamp}, Signature={signature}",
     }
 
     try:
@@ -48,47 +45,43 @@ def gerar_link_afiliado_shopee(link_original):
         return link_original
 
 
-def gerar_link_mercadolivre(link_original):
-    """Aplica o seu ID de afiliado oficial do Mercado Livre ao link do produto."""
+def buscar_ofertas_mercadolivre_auto(termo="ofertas"):
+    """Busca produtos automaticamente na API pública do Mercado Livre."""
+    url = f"https://api.mercadolibre.com/sites/MLB/search?q={termo}&limit=5"
+    ofertas = []
     try:
-        link_com_afiliado = f"{link_original}?matt_tool={MERCADO_LIVRE_AFFILIATE_ID}"
-        return link_com_afiliado
+        response = requests.get(url, timeout=10)
+        data = response.json()
+        for item in data.get("results", []):
+            link_original = item.get("permalink")
+            # Aplica o ID de afiliado do Mercado Livre automaticamente
+            link_afiliado = f"{link_original}?matt_tool={MERCADO_LIVRE_AFFILIATE_ID}" if MERCADO_LIVRE_AFFILIATE_ID else link_original
+            
+            ofertas.append({
+                "id": f"ML_{item.get('id')}",
+                "titulo": item.get("title"),
+                "preco": item.get("price"),
+                "link": link_afiliado,
+                "categoria": "geral",
+                "loja": "mercadolivre",
+                "imagem": item.get("thumbnail").replace("http:", "https:")
+            })
     except Exception as e:
-        print(f"Erro ao formatar link do Mercado Livre: {e}")
-        return link_original
+        print(f"Erro ao buscar Mercado Livre: {e}")
+    return ofertas
 
 
 def buscar_ofertas_afiliados():
-    """Retorna a lista unificada de ofertas de todas as lojas com os links de afiliado ativos."""
+    """Função central que roda periodicamente para puxar novidades de forma autônoma."""
+    todas_as_ofertas = []
+
+    # 1. Puxa automaticamente do Mercado Livre com base em termos de busca populares
+    termos_busca = ["smartphone", "fone bluetooth", "smartwatch", "eletroportateis"]
+    for termo in termos_busca:
+        produtos_ml = buscar_ofertas_mercadolivre_auto(termo)
+        todas_as_ofertas.extend(produtos_ml)
+
+    # 2. Aqui você pode adicionar lógica semelhante para Shopee/Amazon via API de busca ou listagens automatizadas.
     
-    ofertas_encontradas = [
-        {
-            "id": "SHOPEE_FONE_01",
-            "titulo": "Fone de Ouvido Bluetooth Sem Fio TWS Gamer",
-            "preco": 39.90,
-            "link": gerar_link_afiliado_shopee("https://shopee.com.br/exemplo-produto"),
-            "categoria": "eletronicos",
-            "loja": "shopee",
-            "imagem": "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=500&q=80",
-        },
-        {
-            "id": "AMZ_ECHO_DOT_5",
-            "titulo": "Echo Dot 5ª Geração com Alexa - Som Incrível",
-            "preco": 359.10,
-            "link": f"https://www.amazon.com.br/dp/B0BZF5K27K?tag={AMAZON_TAG}",
-            "categoria": "eletronicos",
-            "loja": "amazon",
-            "imagem": "https://images.unsplash.com/photo-1543512214-318c7553f230?w=500&q=80",
-        },
-        {
-            "id": "ML_CADEIRA_GAMER_01",
-            "titulo": "Cadeira Gamer Ergonômica Reclinável Confortável",
-            "preco": 549.00,
-            "link": gerar_link_mercadolivre("https://mercadolivre.com.br/sec/exemplo-afiliado"),
-            "categoria": "gamer",
-            "loja": "mercadolivre",
-            "imagem": "https://images.unsplash.com/photo-1598550476439-6847785fcea6?w=500&q=80",
-        },
-    ]
-    
-    return ofertas_encontradas
+    print(f"Total de ofertas puxadas automaticamente: {len(todas_as_ofertas)}")
+    return todas_as_ofertas
