@@ -1,18 +1,26 @@
 import os
+import re
 import threading
 import time
+from datetime import datetime, timedelta, timezone
 import requests
 from flask import Flask, jsonify, render_template, request
 from database import (
     inicializar_banco,
     salvar_oferta_db,
     buscar_ofertas_db,
+    remover_ofertas_expiradas,
     alternar_interesse,
-    usuarios_da_categoria,
-    oferta_ja_enviada,
+    definir_interesses,
+    cancelar_inscricao,
+    listar_inscritos,
+    ofertas_para_enviar,
     registrar_envio,
+    agora_utc,
+    data_iso,
 )
-from scraper import buscar_ofertas_afiliados
+from scraper import buscar_ofertas_afiliados, CATEGORIAS, LOJAS
+from whatsapp import interpretar_mensagem, montar_mensagem_ofertas
 
 app = Flask(__name__)
 inicializar_banco()
@@ -21,12 +29,29 @@ inicializar_banco()
 # com o endereço público do bot (127.0.0.1 só funciona se o bot rodar no mesmo servidor).
 NODE_SERVER_URL = os.getenv("WHATSAPP_BOT_URL", "http://127.0.0.1:3000/send-promo")
 
-# Link de convite do grupo/canal de WhatsApp exibido no site (ex.: https://chat.whatsapp.com/...)
+# Número do bot (só dígitos, com DDI e DDD, ex.: 5511999998888). O botão do site abre
+# uma conversa com ele já com a mensagem de inscrição escrita.
+NUMERO_BOT_WHATSAPP = re.sub(r"\D", "", os.getenv("WHATSAPP_NUMERO_BOT", ""))
+
+# Link de convite do grupo/canal de WhatsApp (opcional, aparece como alternativa)
 LINK_GRUPO_WHATSAPP = os.getenv("WHATSAPP_LINK", "")
 
-# Intervalo entre varreduras (segundos) e limite de ofertas novas disparadas por ciclo
+# Chave que o bot envia no cabeçalho X-Bot-Token para cadastrar pessoas.
+# Sem ela configurada, qualquer um poderia inscrever números de terceiros.
+TOKEN_BOT = os.getenv("WHATSAPP_BOT_TOKEN", "")
+
+# Busca ofertas novas a cada 5 minutos e mantém cada uma no site por até 4 horas
 INTERVALO_VARREDURA = int(os.getenv("INTERVALO_VARREDURA", "300"))
-MAX_ENVIOS_POR_CICLO = int(os.getenv("MAX_ENVIOS_POR_CICLO", "3"))
+HORAS_VALIDADE_OFERTA = float(os.getenv("HORAS_VALIDADE_OFERTA", "4"))
+
+# Envio no WhatsApp: a cada 30 minutos, até 3 ofertas novas por pessoa numa só mensagem
+INTERVALO_WHATSAPP = int(os.getenv("INTERVALO_WHATSAPP", "1800"))
+OFERTAS_POR_MENSAGEM = int(os.getenv("OFERTAS_POR_MENSAGEM", "3"))
+
+# Horário de Brasília em que o bot não manda ofertas (das 22h às 8h)
+FUSO_BRASILIA = timezone(timedelta(hours=-3))
+SILENCIO_INICIO = int(os.getenv("SILENCIO_INICIO", "22"))
+SILENCIO_FIM = int(os.getenv("SILENCIO_FIM", "8"))
 
 # Endereço público do próprio site. O Render preenche RENDER_EXTERNAL_URL sozinho.
 URL_PUBLICA = os.getenv("RENDER_EXTERNAL_URL", "")
@@ -34,6 +59,7 @@ INTERVALO_MANTER_ACORDADO = 600  # 10 minutos (o Render gratuito dorme após 15 
 
 # Impede que a varredura automática e a /forcar-atualizacao rodem ao mesmo tempo
 trava_varredura = threading.Lock()
+ultima_varredura = None
 
 
 # ==========================================
@@ -42,14 +68,34 @@ trava_varredura = threading.Lock()
 
 @app.route("/")
 def home():
-    return render_template("index.html", link_whatsapp=LINK_GRUPO_WHATSAPP)
+    link_bot = ""
+    if NUMERO_BOT_WHATSAPP:
+        link_bot = f"https://wa.me/{NUMERO_BOT_WHATSAPP}"
+    return render_template(
+        "index.html",
+        link_bot=link_bot,
+        link_grupo=LINK_GRUPO_WHATSAPP,
+        categorias=CATEGORIAS,
+        lojas=LOJAS,
+        intervalo_whatsapp=INTERVALO_WHATSAPP // 60,
+        horas_validade=f"{HORAS_VALIDADE_OFERTA:g}",
+    )
 
 
 @app.route("/api/ofertas", methods=["GET"])
 def api_ofertas():
-    # Puxa as ofertas salvas automaticamente do banco de dados
-    ofertas = buscar_ofertas_db()
+    # Só as ofertas publicadas dentro do prazo de validade
+    ofertas = buscar_ofertas_db(HORAS_VALIDADE_OFERTA)
     return jsonify(ofertas)
+
+
+@app.route("/api/status", methods=["GET"])
+def api_status():
+    return jsonify({
+        "ultima_varredura": data_iso(ultima_varredura),
+        "intervalo_minutos": INTERVALO_VARREDURA // 60,
+        "validade_horas": HORAS_VALIDADE_OFERTA,
+    })
 
 
 @app.route("/saude")
@@ -64,7 +110,7 @@ def forcar_atualizacao():
     if not trava_varredura.acquire(blocking=False):
         return "⏳ Já existe uma varredura em andamento. Tente novamente em instantes.", 409
     try:
-        total = salvar_ofertas(buscar_ofertas_afiliados())
+        total = executar_varredura()
         return f"🔄 Busca forçada executada com sucesso! O bot encontrou {total} produtos e salvou-os no banco de dados."
     except Exception as e:
         return f"❌ Erro ao forçar atualização: {e}", 500
@@ -73,11 +119,42 @@ def forcar_atualizacao():
 
 
 # ==========================================
-# 2. ROTA DE INTERESSES DO WHATSAPP
+# 2. ROTAS DO BOT DE WHATSAPP
 # ==========================================
+
+def pedido_do_bot_autorizado():
+    return not TOKEN_BOT or request.headers.get("X-Bot-Token") == TOKEN_BOT
+
+
+@app.route("/api/whatsapp/mensagem", methods=["POST"])
+def mensagem_recebida_no_bot():
+    """O bot repassa aqui cada mensagem recebida e envia de volta o campo "resposta".
+
+    Corpo esperado: {"numero": "<id do WhatsApp>", "texto": "<mensagem da pessoa>"}
+    """
+    if not pedido_do_bot_autorizado():
+        return jsonify({"status": "erro", "mensagem": "Token do bot inválido"}), 401
+
+    dados = request.get_json(silent=True) or {}
+    numero = dados.get("numero")
+    texto = dados.get("texto") or ""
+    if not numero:
+        return jsonify({"status": "erro", "mensagem": "Informe numero e texto"}), 400
+
+    acao, categorias, resposta = interpretar_mensagem(texto, INTERVALO_WHATSAPP // 60)
+    if acao == "inscrever":
+        definir_interesses(numero, categorias)
+    elif acao == "sair":
+        cancelar_inscricao(numero)
+
+    return jsonify({"status": "sucesso", "acao": acao, "categorias": categorias, "resposta": resposta})
+
 
 @app.route("/api/interesse", methods=["POST"])
 def salvar_interesse():
+    if not pedido_do_bot_autorizado():
+        return jsonify({"status": "erro", "mensagem": "Token do bot inválido"}), 401
+
     dados = request.get_json(silent=True) or {}
     whatsapp_id = dados.get("whatsapp_id")
     categoria = dados.get("categoria")
@@ -109,48 +186,13 @@ def salvar_ofertas(ofertas):
     return len(ofertas)
 
 
-def disparar_para_whatsapp(whatsapp_id, texto):
-    try:
-        requests.post(
-            NODE_SERVER_URL,
-            json={"numero": whatsapp_id, "mensagem": texto},
-            timeout=5,
-        )
-    except Exception as e:
-        print(f"Erro ao disparar mensagem para {whatsapp_id}: {e}")
-
-
-def enviar_ofertas_whatsapp(ofertas):
-    """Envia para o WhatsApp as ofertas que ainda não foram disparadas."""
-    enviadas = 0
-
-    for oferta in ofertas:
-        if enviadas >= MAX_ENVIOS_POR_CICLO:
-            break  # As demais ficam para o próximo ciclo, evitando excesso de mensagens
-
-        prod_id = oferta["id"]
-        if oferta_ja_enviada(prod_id):
-            continue
-
-        usuarios = usuarios_da_categoria(oferta["categoria"])
-
-        preco_formatado = f"{oferta['preco']:.2f}".replace(".", ",")
-        mensagem = (
-            f"🔥 *OFERTA IMPERDÍVEL!* 🔥\n\n"
-            f"📦 *{oferta['titulo']}*\n"
-            f"💰 Por apenas: *R$ {preco_formatado}*\n\n"
-            f"👉 Acesse a promoção: {oferta['link']}"
-        )
-
-        for wa_id in usuarios:
-            print(f"Enviando oferta para {wa_id}...")
-            disparar_para_whatsapp(wa_id, mensagem)
-            time.sleep(2)  # Pausa para evitar spam
-
-        # Regista no histórico que o produto já foi disparado
-        registrar_envio(prod_id)
-        if usuarios:
-            enviadas += 1
+def executar_varredura():
+    """Busca ofertas novas, salva no banco e tira do site as que passaram do prazo."""
+    global ultima_varredura
+    total = salvar_ofertas(buscar_ofertas_afiliados())
+    remover_ofertas_expiradas(HORAS_VALIDADE_OFERTA)
+    ultima_varredura = agora_utc()
+    return total
 
 
 def processar_ofertas():
@@ -158,19 +200,63 @@ def processar_ofertas():
         print("\n🔍 Buscando novas ofertas no mercado...")
         with trava_varredura:
             try:
-                ofertas = buscar_ofertas_afiliados()
-
-                # 1. Salva automaticamente no banco para o site exibir
-                salvar_ofertas(ofertas)
-
-                # 2. Dispara no WhatsApp as ofertas que ainda não foram enviadas
-                enviar_ofertas_whatsapp(ofertas)
-
+                executar_varredura()
                 print("✅ Ciclo de varredura concluído com sucesso!")
             except Exception as e:
                 print(f"Erro no processamento de ofertas: {e}")
 
         time.sleep(INTERVALO_VARREDURA)
+
+
+def disparar_para_whatsapp(whatsapp_id, texto):
+    try:
+        resposta = requests.post(
+            NODE_SERVER_URL,
+            json={"numero": whatsapp_id, "mensagem": texto},
+            timeout=10,
+        )
+        return resposta.ok
+    except Exception as e:
+        print(f"Erro ao disparar mensagem para {whatsapp_id}: {e}")
+        return False
+
+
+def em_horario_silencioso():
+    hora = datetime.now(FUSO_BRASILIA).hour
+    if SILENCIO_INICIO > SILENCIO_FIM:
+        return hora >= SILENCIO_INICIO or hora < SILENCIO_FIM
+    return SILENCIO_INICIO <= hora < SILENCIO_FIM
+
+
+def enviar_ofertas_whatsapp():
+    """Manda para cada inscrito uma mensagem com as ofertas novas das categorias dele."""
+    for whatsapp_id, categorias in listar_inscritos().items():
+        ofertas = ofertas_para_enviar(
+            whatsapp_id, categorias, OFERTAS_POR_MENSAGEM, HORAS_VALIDADE_OFERTA
+        )
+        if not ofertas:
+            continue
+
+        print(f"Enviando {len(ofertas)} oferta(s) para {whatsapp_id}...")
+        if disparar_para_whatsapp(whatsapp_id, montar_mensagem_ofertas(ofertas)):
+            # Só marca como enviada se o bot confirmou; senão tenta no próximo ciclo
+            for oferta in ofertas:
+                registrar_envio(whatsapp_id, oferta["id"])
+        time.sleep(3)  # Pausa entre pessoas para o WhatsApp não bloquear o número
+
+
+def processar_whatsapp():
+    # Espera a primeira varredura terminar antes do primeiro envio
+    time.sleep(60)
+    while True:
+        if em_horario_silencioso():
+            print("🌙 Horário de silêncio: nenhuma oferta enviada no WhatsApp agora.")
+        else:
+            try:
+                enviar_ofertas_whatsapp()
+            except Exception as e:
+                print(f"Erro no envio de ofertas pelo WhatsApp: {e}")
+        time.sleep(INTERVALO_WHATSAPP)
 
 
 def manter_acordado():
@@ -186,6 +272,7 @@ def manter_acordado():
 def iniciar_tarefas_em_segundo_plano():
     # Inicia assim que o app carrega, funcionando tanto com "python main.py" quanto com gunicorn
     threading.Thread(target=processar_ofertas, daemon=True).start()
+    threading.Thread(target=processar_whatsapp, daemon=True).start()
     if URL_PUBLICA:
         threading.Thread(target=manter_acordado, daemon=True).start()
 
