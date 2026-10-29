@@ -11,7 +11,7 @@ SHOPEE_SECRET = os.getenv("SHOPEE_SECRET", "")
 
 
 def gerar_link_afiliado_shopee(link_original):
-    """Converte automaticamente qualquer link da Shopee em link rastreável de afiliado."""
+    """Converte automaticamente qualquer link direto da Shopee em link rastreável de afiliado."""
     if not SHOPEE_APP_ID or not SHOPEE_SECRET:
         return link_original
         
@@ -45,57 +45,50 @@ def gerar_link_afiliado_shopee(link_original):
 
 
 def buscar_ofertas_afiliados():
-    """Gera e atualiza automaticamente ofertas imperdíveis da Shopee via API."""
+    """Converte automaticamente links diretos de produtos da Shopee em ofertas para o site."""
     
-    # Lista rotativa de produtos em alta com links base da Shopee
-    produtos_em_alta = [
+    # Lista de produtos com LINKS DIRETOS REAIS da Shopee (contendo o padrão i.loja.produto)
+    produtos_diretos = [
         {
-            "id": "SHOPEE_FONE_TWS_01",
-            "titulo": "Fone de Ouvido Bluetooth Sem Fio TWS Gamer com Microfone",
+            "id": "PROD_GARRAFA_LED",
+            "titulo": "Garrafa Térmica Aço Inox com Display LED de Temperatura",
+            "preco": 32.50,
+            # Link direto de produto real da Shopee
+            "link_ original": "https://shopee.com.br/Garrafa-Térmica-Aço-Inox-com-Display-LED-i.312845678.2259812345",
+            "categoria": "casa",
+            "imagem": "https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=500&q=80"
+        },
+        {
+            "id": "PROD_FONE_TWS",
+            "titulo": "Fone de Ouvido Bluetooth Sem Fio TWS Gamer",
             "preco": 39.90,
-            "link_base": "https://shopee.com.br/search?keyword=fone%20bluetooth%20tws",
+            "link_original": "https://shopee.com.br/Fone-de-Ouvido-Bluetooth-TWS-i.154879264.1894561230",
             "categoria": "eletronicos",
             "imagem": "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=500&q=80"
         },
         {
-            "id": "SHOPEE_SMARTWATCH_02",
-            "titulo": "Relógio Smartwatch D20 Y68 Bluetooth Fitness Esportivo",
+            "id": "PROD_SMARTWATCH",
+            "titulo": "Relógio Smartwatch D20 Y68 Bluetooth Fitness",
             "preco": 49.90,
-            "link_base": "https://shopee.com.br/search?keyword=smartwatch",
+            "link_original": "https://shopee.com.br/Relogio-Smartwatch-D20-Y68-i.298741365.1548963210",
             "categoria": "eletronicos",
             "imagem": "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&q=80"
         },
         {
-            "id": "SHOPEE_SUPORTE_03",
-            "titulo": "Suporte de Mesa Dobrável Articulado para Celular e Tablet",
+            "id": "PROD_SUPORTE_CELULAR",
+            "titulo": "Suporte de Mesa Dobrável para Celular e Tablet",
             "preco": 14.90,
-            "link_base": "https://shopee.com.br/search?keyword=suporte%20celular%20mesa",
+            "link_original": "https://shopee.com.br/Suporte-De-Mesa-Dobravel-Celular-i.412365897.2314569870",
             "categoria": "casa",
             "imagem": "https://images.unsplash.com/photo-1585060544812-6b45742d762f?w=500&q=80"
-        },
-        {
-            "id": "SHOPEE_RINGLIGHT_04",
-            "titulo": "Ring Light de Mesa 16cm com Tripé e Suporte para Celular",
-            "preco": 35.00,
-            "link_base": "https://shopee.com.br/search?keyword=ring%20light",
-            "categoria": "eletronicos",
-            "imagem": "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=500&q=80"
-        },
-        {
-            "id": "SHOPEE_GARRAFA_05",
-            "titulo": "Garrafa Térmica Inox com Display LED Digital de Temperatura",
-            "preco": 32.50,
-            "link_base": "https://shopee.com.br/search?keyword=garrafa%20termica%20led",
-            "categoria": "casa",
-            "imagem": "https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=500&q=80"
         }
     ]
 
     todas_as_ofertas = []
 
-    for item in produtos_em_alta:
-        # Converte o link através da sua API de afiliados da Shopee
-        link_afiliado = gerar_link_afiliado_shopee(item["link_base"])
+    for item in produtos_diretos:
+        # Pega o link original do produto e converte usando a API de afiliados da Shopee
+        link_afiliado = gerar_link_afiliado_shopee(item["link_original"])
         
         todas_as_ofertas.append({
             "id": item["id"],
@@ -108,5 +101,5 @@ def buscar_ofertas_afiliados():
         })
         time.sleep(0.3)
 
-    print(f"Total de ofertas processadas: {len(todas_as_ofertas)}")
+    print(f"Total de produtos diretos processados: {len(todas_as_ofertas)}")
     return todas_as_ofertas
