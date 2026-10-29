@@ -47,14 +47,13 @@ def gerar_link_afiliado_shopee(link_original):
 def buscar_ofertas_afiliados():
     """Converte automaticamente links diretos de produtos da Shopee em ofertas para o site."""
     
-    # Lista de produtos com LINKS DIRETOS REAIS da Shopee (contendo o padrão i.loja.produto)
+    # Lista de produtos com links diretos reais da Shopee
     produtos_diretos = [
         {
             "id": "PROD_GARRAFA_LED",
             "titulo": "Garrafa Térmica Aço Inox com Display LED de Temperatura",
             "preco": 32.50,
-            # Link direto de produto real da Shopee
-            "link_ original": "https://shopee.com.br/Garrafa-Térmica-Aço-Inox-com-Display-LED-i.312845678.2259812345",
+            "link_original": "https://shopee.com.br/Garrafa-Térmica-Aço-Inox-com-Display-LED-i.312845678.2259812345",
             "categoria": "casa",
             "imagem": "https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=500&q=80"
         },
@@ -87,7 +86,6 @@ def buscar_ofertas_afiliados():
     todas_as_ofertas = []
 
     for item in produtos_diretos:
-        # Pega o link original do produto e converte usando a API de afiliados da Shopee
         link_afiliado = gerar_link_afiliado_shopee(item["link_original"])
         
         todas_as_ofertas.append({
