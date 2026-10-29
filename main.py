@@ -3,7 +3,15 @@ import threading
 import time
 import requests
 from flask import Flask, jsonify, render_template, request
-from database import conectar, inicializar_banco, salvar_oferta_db, buscar_ofertas_db
+from database import (
+    inicializar_banco,
+    salvar_oferta_db,
+    buscar_ofertas_db,
+    alternar_interesse,
+    usuarios_da_categoria,
+    oferta_ja_enviada,
+    registrar_envio,
+)
 from scraper import buscar_ofertas_afiliados
 
 app = Flask(__name__)
@@ -16,6 +24,10 @@ NODE_SERVER_URL = os.getenv("WHATSAPP_BOT_URL", "http://127.0.0.1:3000/send-prom
 # Intervalo entre varreduras (segundos) e limite de ofertas novas disparadas por ciclo
 INTERVALO_VARREDURA = int(os.getenv("INTERVALO_VARREDURA", "300"))
 MAX_ENVIOS_POR_CICLO = int(os.getenv("MAX_ENVIOS_POR_CICLO", "3"))
+
+# Endereço público do próprio site. O Render preenche RENDER_EXTERNAL_URL sozinho.
+URL_PUBLICA = os.getenv("RENDER_EXTERNAL_URL", "")
+INTERVALO_MANTER_ACORDADO = 600  # 10 minutos (o Render gratuito dorme após 15 sem visitas)
 
 # Impede que a varredura automática e a /forcar-atualizacao rodem ao mesmo tempo
 trava_varredura = threading.Lock()
@@ -35,6 +47,12 @@ def api_ofertas():
     # Puxa as ofertas salvas automaticamente do banco de dados
     ofertas = buscar_ofertas_db()
     return jsonify(ofertas)
+
+
+@app.route("/saude")
+def saude():
+    """Rota leve usada para manter o serviço acordado e para monitoramento."""
+    return "ok", 200
 
 
 @app.route("/forcar-atualizacao")
@@ -64,31 +82,7 @@ def salvar_interesse():
     if not whatsapp_id or not categoria:
         return jsonify({"status": "erro", "mensagem": "Informe whatsapp_id e categoria"}), 400
 
-    conn = conectar()
-    cursor = conn.cursor()
-
-    cursor.execute(
-        "INSERT OR IGNORE INTO usuarios (whatsapp_id) VALUES (?)", (whatsapp_id,)
-    )
-
-    # Alterna o interesse (se já tiver, remove; se não tiver, insere)
-    cursor.execute(
-        "SELECT * FROM interesses WHERE whatsapp_id = ? AND categoria = ?",
-        (whatsapp_id, categoria),
-    )
-    if cursor.fetchone():
-        cursor.execute(
-            "DELETE FROM interesses WHERE whatsapp_id = ? AND categoria = ?",
-            (whatsapp_id, categoria),
-        )
-    else:
-        cursor.execute(
-            "INSERT INTO interesses (whatsapp_id, categoria) VALUES (?, ?)",
-            (whatsapp_id, categoria),
-        )
-
-    conn.commit()
-    conn.close()
+    alternar_interesse(whatsapp_id, categoria)
     return jsonify({"status": "sucesso"}), 200
 
 
@@ -124,8 +118,6 @@ def disparar_para_whatsapp(whatsapp_id, texto):
 
 def enviar_ofertas_whatsapp(ofertas):
     """Envia para o WhatsApp as ofertas que ainda não foram disparadas."""
-    conn = conectar()
-    cursor = conn.cursor()
     enviadas = 0
 
     for oferta in ofertas:
@@ -133,20 +125,10 @@ def enviar_ofertas_whatsapp(ofertas):
             break  # As demais ficam para o próximo ciclo, evitando excesso de mensagens
 
         prod_id = oferta["id"]
-
-        # Verifica se a oferta já foi enviada no histórico do WhatsApp
-        cursor.execute(
-            "SELECT 1 FROM historico_ofertas WHERE produto_id = ?", (prod_id,)
-        )
-        if cursor.fetchone():
+        if oferta_ja_enviada(prod_id):
             continue
 
-        # Busca usuários cadastrados nessa categoria
-        cursor.execute(
-            "SELECT whatsapp_id FROM interesses WHERE categoria = ?",
-            (oferta["categoria"],),
-        )
-        usuarios = cursor.fetchall()
+        usuarios = usuarios_da_categoria(oferta["categoria"])
 
         preco_formatado = f"{oferta['preco']:.2f}".replace(".", ",")
         mensagem = (
@@ -156,21 +138,15 @@ def enviar_ofertas_whatsapp(ofertas):
             f"👉 Acesse a promoção: {oferta['link']}"
         )
 
-        for usuario in usuarios:
-            wa_id = usuario[0]
+        for wa_id in usuarios:
             print(f"Enviando oferta para {wa_id}...")
             disparar_para_whatsapp(wa_id, mensagem)
             time.sleep(2)  # Pausa para evitar spam
 
         # Regista no histórico que o produto já foi disparado
-        cursor.execute(
-            "INSERT OR IGNORE INTO historico_ofertas (produto_id) VALUES (?)", (prod_id,)
-        )
-        conn.commit()
+        registrar_envio(prod_id)
         if usuarios:
             enviadas += 1
-
-    conn.close()
 
 
 def processar_ofertas():
@@ -193,13 +169,24 @@ def processar_ofertas():
         time.sleep(INTERVALO_VARREDURA)
 
 
-def iniciar_varredura():
-    # Inicia a thread de varredura em segundo plano assim que o app carrega,
-    # funcionando tanto com "python main.py" quanto com gunicorn
+def manter_acordado():
+    """Visita o próprio site a cada 10 minutos para o Render gratuito não colocá-lo para dormir."""
+    while True:
+        time.sleep(INTERVALO_MANTER_ACORDADO)
+        try:
+            requests.get(f"{URL_PUBLICA}/saude", timeout=30)
+        except Exception as e:
+            print(f"Aviso: falha ao manter o serviço acordado: {e}")
+
+
+def iniciar_tarefas_em_segundo_plano():
+    # Inicia assim que o app carrega, funcionando tanto com "python main.py" quanto com gunicorn
     threading.Thread(target=processar_ofertas, daemon=True).start()
+    if URL_PUBLICA:
+        threading.Thread(target=manter_acordado, daemon=True).start()
 
 
-iniciar_varredura()
+iniciar_tarefas_em_segundo_plano()
 
 
 # ==========================================
