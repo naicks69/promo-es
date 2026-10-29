@@ -8,7 +8,7 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Ícones Lucide -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/lucide@0.460.0"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen font-sans flex flex-col">
 
@@ -87,6 +87,7 @@
             <div class="w-full">
                 <select id="select-categoria" onchange="aplicarFiltros()" class="w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-xl px-4 py-3 focus:outline-none focus:border-orange-500 transition cursor-pointer">
                     <option value="todas">📦 Todas as Categorias</option>
+                    <option value="casa">🏠 Casa</option>
                     <option value="eletronicos">📱 Eletrônicos</option>
                     <option value="gamer">🎮 Gamer</option>
                     <option value="moda">👕 Moda</option>
@@ -132,6 +133,7 @@
         async function carregarOfertas() {
             try {
                 const resposta = await fetch('/api/ofertas');
+                if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
                 todosOsProdutos = await resposta.json();
                 aplicarFiltros();
                 atualizarContadorFavoritos();
@@ -187,32 +189,42 @@
                         <i data-lucide="package-x" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
                         <p>Nenhuma promoção encontrada com os filtros selecionados.</p>
                     </div>`;
-                lucide.createIcons();
+                desenharIcones();
                 return;
             }
 
-            lista.forEach(produto => {
+            const nomesLojas = { shopee: 'Shopee', amazon: 'Amazon', mercadolivre: 'Mercado Livre' };
+
+            grid.innerHTML = lista.map(produto => {
                 const isFav = favoritos.includes(produto.id);
-                const card = `
+                const id = escaparHtml(produto.id);
+                const titulo = escaparHtml(produto.titulo);
+                const link = escaparHtml(produto.link);
+                const preco = Number(produto.preco);
+                const precoTexto = isNaN(preco) ? '--' : preco.toFixed(2).replace('.', ',');
+                const nomeLoja = nomesLojas[produto.loja] || produto.loja || 'Loja';
+                return `
                     <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl overflow-hidden flex flex-col justify-between hover:border-slate-600 transition shadow-lg group">
                         <div>
                             <!-- Imagem e Botão Favorito -->
                             <div class="relative h-48 bg-slate-900 overflow-hidden">
-                                <img src="${produto.imagem || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&q=80'}" alt="${produto.titulo}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
-                                <button onclick="toggleFavorito('${produto.id}')" class="absolute top-3 right-3 bg-slate-900/80 hover:bg-slate-900 p-2 rounded-xl backdrop-blur-sm transition border border-slate-700">
+                                <a href="${link}" target="_blank" rel="noopener sponsored">
+                                    <img src="${escaparHtml(produto.imagem || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&q=80')}" alt="${titulo}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                                </a>
+                                <button data-id="${id}" onclick="toggleFavorito(this.dataset.id)" class="absolute top-3 right-3 bg-slate-900/80 hover:bg-slate-900 p-2 rounded-xl backdrop-blur-sm transition border border-slate-700">
                                     <i data-lucide="heart" class="w-4 h-4 ${isFav ? 'text-rose-500 fill-rose-500' : 'text-slate-300'}"></i>
                                 </button>
                                 <span class="absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur-sm text-slate-200 text-[10px] font-bold uppercase px-2.5 py-1 rounded-lg border border-slate-700">
-                                    ${produto.loja || 'loja'}
+                                    ${escaparHtml(nomeLoja)}
                                 </span>
                             </div>
 
                             <div class="p-5">
                                 <div class="mb-2">
-                                    <span class="text-orange-400 text-[10px] font-bold uppercase tracking-wider">${produto.categoria}</span>
+                                    <span class="text-orange-400 text-[10px] font-bold uppercase tracking-wider">${escaparHtml(produto.categoria)}</span>
                                 </div>
                                 <h3 class="font-semibold text-slate-200 group-hover:text-orange-400 transition text-sm sm:text-base line-clamp-2 mb-4">
-                                    ${produto.titulo}
+                                    ${titulo}
                                 </h3>
                             </div>
                         </div>
@@ -222,26 +234,40 @@
                                 <div>
                                     <span class="text-[10px] text-slate-400 block">Por apenas</span>
                                     <div class="text-2xl font-black text-emerald-400 tracking-tight">
-                                        R$ ${produto.preco.toFixed(2).replace('.', ',')}
+                                        R$ ${precoTexto}
                                     </div>
                                 </div>
-                                <button onclick="copiarLink('${produto.link}')" title="Copiar link" class="bg-slate-700/50 hover:bg-slate-700 text-slate-300 p-2.5 rounded-xl transition border border-slate-700">
+                                <button data-link="${link}" onclick="copiarLink(this.dataset.link)" title="Copiar link" class="bg-slate-700/50 hover:bg-slate-700 text-slate-300 p-2.5 rounded-xl transition border border-slate-700">
                                     <i data-lucide="copy" class="w-4 h-4"></i>
                                 </button>
                             </div>
 
-                            <a href="${produto.link}" target="_blank" 
+                            <a href="${link}" target="_blank" rel="noopener sponsored"
                                class="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-orange-500/20 transition text-sm">
-                                <span>Ver na Loja</span>
+                                <span>Comprar na ${escaparHtml(nomeLoja)}</span>
                                 <i data-lucide="external-link" class="w-4 h-4"></i>
                             </a>
                         </div>
                     </div>
                 `;
-                grid.innerHTML += card;
-            });
+            }).join('');
 
-            lucide.createIcons();
+            desenharIcones();
+        }
+
+        // Se a biblioteca de ícones não carregar, o site continua mostrando os produtos
+        function desenharIcones() {
+            if (window.lucide) lucide.createIcons();
+        }
+
+        // Evita que aspas ou símbolos no nome do produto quebrem o card
+        function escaparHtml(valor) {
+            return String(valor ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
         }
 
         function toggleFavorito(id) {
@@ -275,17 +301,9 @@
             alert('Link de afiliado copiado!');
         }
 
-        // ==========================================
-        // CORREÇÃO: Executa o Lucide assim que o HTML abre
-        // ==========================================
-        document.addEventListener("DOMContentLoaded", () => {
-            lucide.createIcons();
-            carregarOfertas();
-        });
-
         // Inicia assim que a página é carregada
         document.addEventListener("DOMContentLoaded", () => {
-            lucide.createIcons();
+            desenharIcones();
             carregarOfertas();
 
             // ATUALIZAÇÃO AUTOMÁTICA DA TELA:
