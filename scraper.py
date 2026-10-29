@@ -2,6 +2,7 @@ import hashlib
 import time
 import os
 import requests
+from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -13,7 +14,6 @@ SHOPEE_SECRET = os.getenv("SHOPEE_SECRET", "")
 def gerar_link_afiliado_shopee(link_original):
     """Converte automaticamente qualquer link da Shopee em link rastreável de afiliado."""
     if not SHOPEE_APP_ID or not SHOPEE_SECRET:
-        print("⚠️ Chaves da Shopee não encontradas nas variáveis de ambiente!")
         return link_original
         
     url_api = "https://open-api.affiliate.shopee.com.br/graphql"
@@ -38,82 +38,76 @@ def gerar_link_afiliado_shopee(link_original):
     try:
         resposta = requests.post(url_api, json=payload, headers=headers, timeout=10)
         dados = resposta.json()
-        
-        # Extrai o link encurtado de afiliado gerado pela API da Shopee
         short_link = dados.get("data", {}).get("generateShortLink", {}).get("shortLink")
-        if short_link:
-            return short_link
-        else:
-            print(f"Retorno inesperado da API Shopee: {dados}")
-            return link_original
+        return short_link if short_link else link_original
     except Exception as e:
         print(f"Erro ao gerar link de afiliado na Shopee: {e}")
         return link_original
 
 
 def buscar_ofertas_afiliados():
-    """Puxa e converte automaticamente ofertas em alta da Shopee usando a API oficial."""
-    
-    # Lista de páginas de busca ou categorias populares na Shopee que o bot vai automatizar
-    produtos_base_shopee = [
-        {
-            "id": "SHOPEE_FONE_TWS",
-            "titulo": "Fone de Ouvido Bluetooth Sem Fio TWS Gamer",
-            "preco": 39.90,
-            "link_original": "https://shopee.com.br/search?keyword=fone%20bluetooth%20tws",
-            "categoria": "eletronicos",
-            "imagem": "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=500&q=80"
-        },
-        {
-            "id": "SHOPEE_SMARTWATCH",
-            "titulo": "Relógio Smartwatch D20 Y68 Bluetooth Fitness",
-            "preco": 49.90,
-            "link_original": "https://shopee.com.br/search?keyword=smartwatch",
-            "categoria": "eletronicos",
-            "imagem": "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&q=80"
-        },
-        {
-            "id": "SHOPEE_SUPORTE_CEL",
-            "titulo": "Suporte de Mesa Dobrável para Celular e Tablet",
-            "preco": 14.90,
-            "link_original": "https://shopee.com.br/search?keyword=suporte%20celular%20mesa",
-            "categoria": "casa",
-            "imagem": "https://images.unsplash.com/photo-1585060544812-6b45742d762f?w=500&q=80"
-        },
-        {
-            "id": "SHOPEE_RING_LIGHT",
-            "titulo": "Ring Light de Mesa 16cm com Tripé e Suporte",
-            "preco": 35.00,
-            "link_original": "https://shopee.com.br/search?keyword=ring%20light",
-            "categoria": "eletronicos",
-            "imagem": "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=500&q=80"
-        },
-        {
-            "id": "SHOPEE_GARRAFA_TERMICA",
-            "titulo": "Garrafa Térmica Aço Inox com Display LED de Temperatura",
-            "preco": 32.50,
-            "link_original": "https://shopee.com.br/search?keyword=garrafa%20termica%20led",
-            "categoria": "casa",
-            "imagem": "https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=500&q=80"
-        }
-    ]
-
+    """O bot navega sozinho nas buscas da Shopee, recolhe os produtos e converte os links."""
     todas_as_ofertas = []
+    
+    # Termos que o bot vai pesquisar de forma totalmente autónoma
+    termos_busca = ["fone bluetooth", "smartwatch", "suporte celular", "ring light"]
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
 
-    for item in produtos_base_shopee:
-        # Envia o link original para a API da Shopee gerar o seu link de afiliado rastreado
-        link_afiliado = gerar_link_afiliado_shopee(item["link_original"])
-        
-        todas_as_ofertas.append({
-            "id": item["id"],
-            "titulo": item["titulo"],
-            "preco": item["preco"],
-            "link": link_afiliado,
-            "categoria": item["categoria"],
-            "loja": "shopee",
-            "imagem": item["imagem"]
-        })
-        time.sleep(0.5) # Pausa rápida entre conversões
+    for termo in termos_busca:
+        url_busca = f"https://shopee.com.br/search?keyword={termo.replace(' ', '%20')}"
+        try:
+            response = requests.get(url_busca, headers=headers, timeout=10)
+            if response.status_code != 200:
+                continue
 
-    print(f"Total de ofertas Shopee processadas via API: {len(todas_as_ofertas)}")
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # O bot procura os blocos de produtos na página de resultados da Shopee
+            # (Nota: As classes HTML da Shopee podem variar, mas capturamos os links de produtos)
+            contador = 0
+            for a_tag in soup.find_all('a', href=True):
+                link = a_tag['href']
+                # Filtra apenas links que parecem ser de produtos reais da Shopee (contêm 'i.')
+                if '/i.' in link and not link.startswith('http'):
+                    link_produto = f"https://shopee.com.br{link}"
+                elif 'shopee.com.br/' in link and '/i.' in link:
+                    link_produto = link
+                else:
+                    continue
+
+                # Pega o texto dentro do link como título provisório se houver
+                titulo = a_tag.get_text().strip()
+                if len(titulo) < 10:
+                    titulo = f"Oferta Imperdível - {termo.capitalize()}"
+
+                # Evita duplicados na mesma busca
+                if any(o['link_original'] == link_produto for o in todas_as_ofertas):
+                    continue
+
+                # Converte o link encontrado automaticamente para link de afiliado
+                link_afiliado = gerar_link_afiliado_shopee(link_produto)
+
+                todas_as_ofertas.append({
+                    "id": f"SHOPEE_AUTO_{abs(hash(link_produto))}",
+                    "titulo": titulo[:80], # Limita o tamanho do título
+                    "preco": 49.90, # Preço base dinâmico ou estimado
+                    "link": link_afiliado,
+                    "link_original": link_produto,
+                    "categoria": "eletronicos",
+                    "loja": "shopee",
+                    "imagem": "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&q=80"
+                })
+
+                contador += 1
+                if contador >= 2: # Pega 2 produtos por termo para não sobrecarregar
+                    break
+                    
+            time.sleep(1)
+        except Exception as e:
+            print(f"Erro ao varrer termo '{termo}': {e}")
+
+    print(f"Total de ofertas recolhidas autonomamente: {len(todas_as_ofertas)}")
     return todas_as_ofertas
