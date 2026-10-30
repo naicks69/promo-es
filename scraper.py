@@ -28,6 +28,10 @@ COMISSAO_MINIMA = float(os.getenv("COMISSAO_MINIMA", "0"))
 # Produtos com menos vendas que isso ficam de fora: quase sem vendas, quase não convertem
 VENDAS_MINIMAS = int(os.getenv("VENDAS_MINIMAS", "10"))
 
+# A Shopee fica com os itens mais básicos e baratos; acima deste preço o produto
+# fica para o Mercado Livre (só vale nas varreduras, não na busca do cliente)
+SHOPEE_PRECO_MAXIMO = float(os.getenv("SHOPEE_PRECO_MAXIMO", "100"))
+
 # A cada varredura o bot lê a página seguinte dos resultados (1, 2, 3... e volta à 1),
 # para trazer produtos diferentes a cada ciclo em vez de repetir sempre os mesmos.
 PAGINAS_ROTACAO = int(os.getenv("PAGINAS_ROTACAO", "10"))
@@ -67,6 +71,25 @@ BUSCAS = [
     {"palavra_chave": "camiseta masculina", "categoria": "moda"},
     {"palavra_chave": "óculos de sol", "categoria": "moda"},
     {"palavra_chave": "tênis feminino", "categoria": "moda"},
+]
+
+# No Mercado Livre o bot procura produtos de mais qualidade (a partir de ML_PRECO_MINIMO),
+# sempre entre os mais vendidos de cada categoria. Para acrescentar, inclua uma linha aqui.
+BUSCAS_MERCADOLIVRE = [
+    {"palavra_chave": "air fryer", "categoria": "casa"},
+    {"palavra_chave": "aspirador de pó", "categoria": "casa"},
+    {"palavra_chave": "cafeteira", "categoria": "casa"},
+    {"palavra_chave": "jogo de panelas", "categoria": "casa"},
+    {"palavra_chave": "smartphone", "categoria": "eletronicos"},
+    {"palavra_chave": "smart tv", "categoria": "eletronicos"},
+    {"palavra_chave": "fone de ouvido jbl", "categoria": "eletronicos"},
+    {"palavra_chave": "caixa de som bluetooth", "categoria": "eletronicos"},
+    {"palavra_chave": "console videogame", "categoria": "gamer"},
+    {"palavra_chave": "controle ps5", "categoria": "gamer"},
+    {"palavra_chave": "monitor gamer", "categoria": "gamer"},
+    {"palavra_chave": "tênis esportivo", "categoria": "moda"},
+    {"palavra_chave": "relógio masculino", "categoria": "moda"},
+    {"palavra_chave": "perfume importado", "categoria": "moda"},
 ]
 
 _ciclo_atual = 0
@@ -200,7 +223,7 @@ def buscar_produtos_shopee(palavra_chave, categoria, limite=PRODUTOS_POR_BUSCA, 
         vendas = int(produto.get("sales") or 0)
         if taxa * 100 < COMISSAO_MINIMA:
             continue
-        if escolher_por_comissao and vendas < VENDAS_MINIMAS:
+        if escolher_por_comissao and (vendas < VENDAS_MINIMAS or preco > SHOPEE_PRECO_MAXIMO):
             continue
 
         ofertas.append({
@@ -253,7 +276,7 @@ def buscar_ofertas_mercadolivre(pagina):
         return []
 
     palavras_por_categoria = {}
-    for busca in BUSCAS:
+    for busca in BUSCAS_MERCADOLIVRE:
         palavras_por_categoria.setdefault(busca["categoria"], []).append(busca["palavra_chave"])
 
     todas_as_ofertas = []
