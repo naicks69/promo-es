@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>Conectar Mercado Livre | Radar de Ofertas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --tinta: #1B2A4A;
+            --tinta-suave: #5A6782;
+            --linha: #E2E5EC;
+            --fundo: #F3F4F7;
+            --ml: #FFE600;
+            --ml-texto: #2D3277;
+            --ok: #1A8F4C;
+            --erro: #C42B2B;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: var(--fundo);
+            color: var(--tinta);
+            font-family: "Bricolage Grotesque", system-ui, sans-serif;
+            line-height: 1.5;
+        }
+        .topo { background: var(--ml); color: var(--ml-texto); padding: 18px 16px; }
+        .topo h1 { margin: 0; max-width: 640px; margin-inline: auto; font-size: 22px; letter-spacing: -0.02em; }
+        main { max-width: 640px; margin: 0 auto; padding: 20px 16px 48px; display: grid; gap: 16px; }
+        .cartao { background: #fff; border: 1px solid var(--linha); border-radius: 14px; padding: 18px; }
+        .cartao h2 { margin: 0 0 10px; font-size: 17px; }
+        .cartao p { margin: 0 0 10px; color: var(--tinta-suave); }
+        .status { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+        .status li { display: flex; gap: 10px; align-items: baseline; }
+        .ok::before { content: "✓"; color: var(--ok); font-weight: 800; }
+        .falta::before { content: "✗"; color: var(--erro); font-weight: 800; }
+        .mensagem { padding: 14px 16px; border-radius: 12px; background: #E7F7EE; color: #0B4F3C; font-weight: 600; }
+        .mensagem.erro { background: #FCEBEB; color: var(--erro); }
+        .copiar { display: flex; gap: 8px; }
+        code {
+            flex: 1;
+            display: block;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: var(--fundo);
+            font-size: 14px;
+            overflow-wrap: anywhere;
+        }
+        button, .botao {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 44px;
+            padding: 0 18px;
+            border: 0;
+            border-radius: 10px;
+            background: var(--tinta);
+            color: #fff;
+            font: inherit;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .botao.ml { background: var(--ml); color: var(--ml-texto); width: 100%; height: 52px; font-size: 17px; }
+        input {
+            width: 100%;
+            height: 46px;
+            margin-bottom: 10px;
+            padding: 0 12px;
+            border: 1.5px solid var(--linha);
+            border-radius: 10px;
+            font: inherit;
+        }
+        :focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
+    </style>
+</head>
+<body>
+    <header class="topo"><h1>Conectar o Mercado Livre ao Radar de Ofertas</h1></header>
+    <main>
+        {% if mensagem %}
+        <div class="mensagem {% if erro %}erro{% endif %}" role="status">{{ mensagem }}</div>
+        {% endif %}
+
+        {% if not senha_configurada %}
+        <section class="cartao">
+            <h2>Falta a senha de administrador</h2>
+            <p>Cadastre <b>WHATSAPP_BOT_TOKEN</b> no Render (Environment). Essa mesma senha abre esta página.</p>
+        </section>
+        {% elif not senha_correta %}
+        <section class="cartao">
+            <h2>Digite a senha de administrador</h2>
+            <p>É a mesma senha cadastrada no Render em <b>WHATSAPP_BOT_TOKEN</b>.</p>
+            <form method="get" action="/mercadolivre">
+                <input type="password" name="senha" aria-label="Senha" autocomplete="current-password" required>
+                <button type="submit">Entrar</button>
+            </form>
+        </section>
+        {% else %}
+        <section class="cartao">
+            <h2>Situação</h2>
+            <ul class="status">
+                <li class="{{ 'ok' if configurado else 'falta' }}">Aplicativo cadastrado no Render (ML_CLIENT_ID e ML_CLIENT_SECRET)</li>
+                <li class="{{ 'ok' if conectado else 'falta' }}">Conta do Mercado Livre conectada</li>
+                <li class="ok">Afiliado: matt_word={{ usuario_afiliado }} e matt_tool={{ ferramenta_afiliado }}</li>
+            </ul>
+        </section>
+
+        <section class="cartao">
+            <h2>Endereço de retorno (Redirect URI)</h2>
+            <p>Copie e cole exatamente este endereço no campo <b>URIs de redirect</b> do aplicativo, no site de desenvolvedores do Mercado Livre.</p>
+            <div class="copiar">
+                <code id="retorno">{{ endereco_retorno }}</code>
+                <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('retorno').textContent).then(() => this.textContent = 'Copiado')">Copiar</button>
+            </div>
+        </section>
+
+        <section class="cartao">
+            <h2>{{ 'Reconectar a conta' if conectado else 'Conectar a conta' }}</h2>
+            {% if configurado %}
+            <p>Você vai para o Mercado Livre, entra com a sua conta e clica em <b>Permitir</b>. Depois volta para cá sozinho.</p>
+            <a class="botao ml" href="/mercadolivre/conectar?senha={{ senha | urlencode }}">Conectar Mercado Livre</a>
+            {% else %}
+            <p>Primeiro cadastre ML_CLIENT_ID e ML_CLIENT_SECRET no Render e espere o site reiniciar.</p>
+            {% endif %}
+        </section>
+
+        <section class="cartao">
+            <h2>Como fica o link de afiliado</h2>
+            <p>Todo produto do Mercado Livre no site e no WhatsApp recebe a sua identificação de afiliado, assim:</p>
+            <code>{{ exemplo_link }}</code>
+        </section>
+        {% endif %}
+    </main>
+</body>
+</html>

@@ -21,8 +21,29 @@ As variáveis de ambiente estão explicadas em `.env.example`.
 | Loja | Situação |
 | --- | --- |
 | Shopee | Integrada (API de Afiliados) |
-| Amazon | Aparece no site como "em breve" até a integração ser feita |
-| Mercado Livre | Aparece no site como "em breve" até a integração ser feita |
+| Mercado Livre | Integrado (busca pela API + link de afiliado `matt_word`/`matt_tool`). Precisa do aplicativo e da conexão da conta, veja abaixo |
+| Amazon | Aparece no site como "em breve" até a Creators API ser liberada (tag de afiliado: `vidinhaoferta-20`) |
+
+### Como as ofertas são escolhidas para render mais comissão
+
+- **Shopee:** cada busca analisa 20 produtos mais vendidos e fica com os 6 que mais
+  devem render: preço × % de comissão × popularidade. Produtos com menos de 10
+  vendas ficam de fora.
+- **Mercado Livre:** só entram produtos com pelo menos 10% de desconto sobre o preço
+  anterior, ordenados pelo mesmo cálculo (com uma comissão estimada de 5%, porque o
+  Mercado Livre não informa a comissão de cada produto).
+- **WhatsApp:** o bot manda primeiro as ofertas com maior pontuação.
+
+## Conectar o Mercado Livre
+
+1. Em **developers.mercadolivre.com.br**, entre com a conta do Mercado Livre e crie
+   um aplicativo (Minhas aplicações > Criar nova aplicação).
+2. No campo **URIs de redirect**, cole o endereço mostrado na página
+   `/mercadolivre?senha=SUA_SENHA` do site (é `https://SEU-SITE.onrender.com/mercadolivre/retorno`).
+3. Nas permissões, marque leitura e **offline_access** (para a conexão não expirar).
+4. Copie o **Client ID** e o **Client Secret** e cadastre no Render como
+   `ML_CLIENT_ID` e `ML_CLIENT_SECRET`.
+5. Abra `/mercadolivre?senha=SUA_SENHA` e clique em **Conectar Mercado Livre**.
 
 Para integrar uma loja nova, crie a função de busca em `scraper.py` e inclua-a em
 `FONTES_DE_OFERTAS`. Ela deve devolver ofertas com `link` de afiliado e `loja`

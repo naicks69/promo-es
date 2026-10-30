@@ -82,8 +82,14 @@ def texto_oferta(oferta):
     chave = oferta.get("loja") or ""
     loja = LOJAS.get(chave, chave)
     preposicao = "no" if chave == "mercadolivre" else "na"
+    preco_original = oferta.get("preco_original")
+    de_por = ""
+    if preco_original and preco_original > oferta["preco"]:
+        desconto = round((1 - oferta["preco"] / preco_original) * 100)
+        de_por = f"De ~{formatar_preco(preco_original)}~ por\n"
+        loja = f"{loja} ({desconto}% OFF)"
     return (
         f"🔥 *{oferta['titulo']}*\n\n"
-        f"💰 *{formatar_preco(oferta['preco'])}* {preposicao} {loja}\n\n"
+        f"{de_por}💰 *{formatar_preco(oferta['preco'])}* {preposicao} {loja}\n\n"
         f"🛒 Compre aqui: {oferta['link']}"
     )
