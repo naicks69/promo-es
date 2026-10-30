@@ -7,6 +7,7 @@ from urllib.parse import quote_plus
 import requests
 from dotenv import load_dotenv
 
+import aliexpress
 import mercadolivre
 
 load_dotenv()
@@ -40,6 +41,7 @@ LOJAS = {
     "amazon": "Amazon",
     "shopee": "Shopee",
     "mercadolivre": "Mercado Livre",
+    "aliexpress": "AliExpress",
 }
 
 # Categorias do site e do WhatsApp (chave interna -> nome exibido)
@@ -249,9 +251,6 @@ def buscar_ofertas_mercadolivre(pagina):
     if not mercadolivre.configurado():
         print("⚠️ ML_CLIENT_ID e ML_CLIENT_SECRET não configurados. Nenhuma oferta do Mercado Livre será buscada.")
         return []
-    if not mercadolivre.conectado():
-        print("⚠️ Conta do Mercado Livre não conectada. Acesse /mercadolivre no site para conectar.")
-        return []
 
     todas_as_ofertas = []
     ids_vistos = set()
@@ -281,10 +280,18 @@ def pesquisar_nas_lojas(termo, limite=12):
         resultados_por_loja.append(
             buscar_produtos_shopee(termo, "busca", limite, ordem=1, escolher_por_comissao=False)
         )
-    if mercadolivre.configurado() and mercadolivre.conectado():
+    if mercadolivre.configurado():
         resultados_por_loja.append(
             mercadolivre.buscar_produtos_mercadolivre(termo, "busca", limite, so_promocoes=False)
         )
+    if aliexpress.configurado():
+        try:
+            resultados_por_loja.append(
+                aliexpress.buscar_produtos_aliexpress(termo, "busca", limite, so_promocoes=False)
+            )
+        except Exception as e:
+            # As outras lojas continuam aparecendo
+            print(f"AliExpress: erro na busca do cliente '{termo}': {e}")
 
     # Intercala as lojas (1 da Shopee, 1 do Mercado Livre...) para o cliente comparar
     intercalados = []
@@ -295,10 +302,42 @@ def pesquisar_nas_lojas(termo, limite=12):
     return intercalados[:limite]
 
 
+def buscar_ofertas_aliexpress(pagina):
+    """Percorre as buscas no AliExpress e devolve as ofertas com link de afiliado."""
+    if not aliexpress.configurado():
+        print("⚠️ ALIEXPRESS_APP_KEY, ALIEXPRESS_APP_SECRET e ALIEXPRESS_TRACKING_ID não configurados.")
+        return []
+
+    todas_as_ofertas = []
+    ids_vistos = set()
+    erros = []
+    for busca in BUSCAS:
+        try:
+            ofertas = aliexpress.buscar_produtos_aliexpress(
+                busca["palavra_chave"], busca["categoria"], PRODUTOS_POR_BUSCA, pagina
+            )
+        except Exception as e:
+            erros.append(f"'{busca['palavra_chave']}': {e}")
+            ofertas = []
+        print(f"🔎 AliExpress '{busca['palavra_chave']}' (página {pagina}): {len(ofertas)} produtos com link de afiliado")
+        for oferta in ofertas:
+            if oferta["id"] not in ids_vistos:
+                ids_vistos.add(oferta["id"])
+                todas_as_ofertas.append(oferta)
+        time.sleep(1)
+
+    resumo = f"última varredura: {len(BUSCAS)} buscas, {len(todas_as_ofertas)} ofertas com link de afiliado."
+    if erros:
+        resumo += f" {len(erros)} busca(s) com erro. Primeiro erro: {erros[0]}"
+    aliexpress.registrar_diagnostico(resumo)
+    return todas_as_ofertas
+
+
 # Cada loja integrada entra nesta lista com a sua função de busca
 FONTES_DE_OFERTAS = [
     ("shopee", buscar_ofertas_shopee),
     ("mercadolivre", buscar_ofertas_mercadolivre),
+    ("aliexpress", buscar_ofertas_aliexpress),
 ]
 
 

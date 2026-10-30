@@ -22,6 +22,7 @@ As variáveis de ambiente estão explicadas em `.env.example`.
 | --- | --- |
 | Shopee | Integrada (API de Afiliados) |
 | Mercado Livre | Integrado (busca pela API + link de afiliado `matt_word`/`matt_tool`). Precisa do aplicativo e da conexão da conta, veja abaixo |
+| AliExpress | Integrado (API de afiliados: produtos "hot" com comissão maior + link de afiliado com o seu Tracking ID). Precisa de `ALIEXPRESS_APP_KEY`, `ALIEXPRESS_APP_SECRET` e `ALIEXPRESS_TRACKING_ID` |
 | Amazon | Aparece no site como "em breve" até a Creators API ser liberada (tag de afiliado: `vidinhaoferta-20`) |
 
 ### Como as ofertas são escolhidas para render mais comissão
@@ -33,6 +34,13 @@ As variáveis de ambiente estão explicadas em `.env.example`.
   anterior, ordenados pelo mesmo cálculo (com uma comissão estimada de 5%, porque o
   Mercado Livre não informa a comissão de cada produto).
 - **WhatsApp:** o bot manda primeiro as ofertas com maior pontuação.
+
+## Painel de administração (`/admin`)
+
+Mostra numa tela só: se o banco é permanente (Postgres) ou temporário, quantas
+ofertas de cada loja estão no ar, a situação da conexão do Mercado Livre, o resumo
+da última varredura do Mercado Livre e do AliExpress (com o primeiro erro, se
+houver) e os grupos de WhatsApp ativados. A senha é a mesma de `WHATSAPP_BOT_TOKEN`.
 
 ## Busca do cliente nas lojas
 
@@ -57,7 +65,10 @@ guardados por 15 min, até 8 buscas por minuto por visitante).
 A página `/mercadolivre` mostra se a renovação automática está ativa e o resumo da
 última varredura (quantas promoções vieram e o primeiro erro, se houver). Se ela
 avisar que falta **offline_access**, ative essa permissão no aplicativo e reconecte:
-sem ela o acesso dura só 6 horas.
+sem ela o acesso dura só 6 horas. No painel novo do Mercado Livre essa opção
+aparece em **Fluxos OAuth > Refresh Token**. Se mesmo assim a renovação não vier, o
+site usa o acesso do próprio aplicativo (client credentials) para buscar as
+promoções.
 
 Se o Mercado Livre mostrar "não foi possível conectar o aplicativo à sua conta":
 confira se a URI de redirect do aplicativo é idêntica à mostrada na página, se você

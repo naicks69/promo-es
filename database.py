@@ -335,6 +335,23 @@ def link_convite_grupo():
 
 
 # ==========================================
+# PAINEL DE ADMINISTRAÇÃO
+# ==========================================
+
+def contar_ofertas_por_loja(horas_validade=4):
+    linhas = executar(
+        "SELECT loja, COUNT(*) FROM ofertas WHERE data_criacao >= ? GROUP BY loja",
+        (agora_utc(horas_validade),),
+        buscar="todos",
+    )
+    return {loja: total for loja, total in linhas}
+
+
+def contar_grupos():
+    return executar("SELECT COUNT(*) FROM grupos", buscar="um")[0]
+
+
+# ==========================================
 # CONFIGURAÇÕES
 # ==========================================
 

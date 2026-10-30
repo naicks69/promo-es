@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>Painel | Radar de Ofertas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --tinta: #1B2A4A;
+            --tinta-suave: #5A6782;
+            --linha: #E2E5EC;
+            --fundo: #F3F4F7;
+            --ok: #1A8F4C;
+            --erro: #C42B2B;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: var(--fundo);
+            color: var(--tinta);
+            font-family: "Bricolage Grotesque", system-ui, sans-serif;
+            line-height: 1.5;
+        }
+        .topo { background: var(--tinta); color: #fff; padding: 18px 16px; }
+        .topo h1 { margin: 0 auto; max-width: 720px; font-size: 22px; letter-spacing: -0.02em; }
+        main { max-width: 720px; margin: 0 auto; padding: 20px 16px 48px; display: grid; gap: 14px; }
+        .cartao { background: #fff; border: 1px solid var(--linha); border-radius: 14px; padding: 18px; }
+        .cartao h2 { margin: 0 0 10px; font-size: 17px; display: flex; justify-content: space-between; gap: 12px; }
+        .cartao h2 small { font-size: 14px; font-weight: 600; color: var(--tinta-suave); }
+        .cartao p { margin: 0 0 8px; color: var(--tinta-suave); font-size: 15px; }
+        .status { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 6px; }
+        .status li { display: flex; gap: 10px; align-items: baseline; }
+        .ok::before { content: "✓"; color: var(--ok); font-weight: 800; }
+        .falta::before { content: "✗"; color: var(--erro); font-weight: 800; }
+        .diagnostico { padding: 10px 12px; border-radius: 10px; background: var(--fundo); color: var(--tinta) !important; overflow-wrap: anywhere; }
+        .mensagem { padding: 14px 16px; border-radius: 12px; background: #FCEBEB; color: var(--erro); font-weight: 600; }
+        a { color: var(--tinta); font-weight: 600; }
+        input {
+            width: 100%;
+            height: 46px;
+            margin-bottom: 10px;
+            padding: 0 12px;
+            border: 1.5px solid var(--linha);
+            border-radius: 10px;
+            font: inherit;
+        }
+        button {
+            height: 44px;
+            padding: 0 18px;
+            border: 0;
+            border-radius: 10px;
+            background: var(--tinta);
+            color: #fff;
+            font: inherit;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        :focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
+    </style>
+</head>
+<body>
+    <header class="topo"><h1>Painel do Radar de Ofertas</h1></header>
+    <main>
+        {% if mensagem %}<div class="mensagem" role="status">{{ mensagem }}</div>{% endif %}
+
+        {% if not senha_configurada %}
+        <section class="cartao">
+            <h2>Falta a senha de administrador</h2>
+            <p>Cadastre <b>WHATSAPP_BOT_TOKEN</b> no Render (Environment). Essa mesma senha abre este painel.</p>
+        </section>
+        {% elif not senha_correta %}
+        <section class="cartao">
+            <h2>Digite a senha de administrador</h2>
+            <p>É a mesma senha cadastrada no Render em <b>WHATSAPP_BOT_TOKEN</b>.</p>
+            <form method="post" action="/admin">
+                <input type="password" name="senha" aria-label="Senha" autocomplete="current-password" required>
+                <button type="submit">Entrar</button>
+            </form>
+        </section>
+        {% else %}
+        <section class="cartao">
+            <h2>Banco de dados</h2>
+            <ul class="status">
+                <li class="{{ 'ok' if usa_postgres else 'falta' }}">
+                    {% if usa_postgres %}Postgres (permanente){% else %}SQLite temporário: tudo se apaga quando o Render reinicia. Cadastre DATABASE_URL (Neon).{% endif %}
+                </li>
+            </ul>
+            <p>Última varredura: <span class="data" data-iso="{{ ultima_varredura or '' }}">{{ 'ainda não rodou desde o último reinício' if not ultima_varredura else ultima_varredura }}</span></p>
+        </section>
+
+        <section class="cartao">
+            <h2>Shopee <small>{{ ofertas.get('shopee', 0) }} ofertas no ar</small></h2>
+            <ul class="status">
+                <li class="{{ 'ok' if shopee_configurada else 'falta' }}">SHOPEE_APP_ID e SHOPEE_SECRET cadastrados</li>
+            </ul>
+        </section>
+
+        <section class="cartao">
+            <h2>Mercado Livre <small>{{ ofertas.get('mercadolivre', 0) }} ofertas no ar</small></h2>
+            <ul class="status">
+                <li class="{{ 'ok' if ml_configurado else 'falta' }}">ML_CLIENT_ID e ML_CLIENT_SECRET cadastrados</li>
+                <li class="{{ 'ok' if ml_conectado else 'falta' }}">Conta conectada</li>
+                <li class="{{ 'ok' if ml_renovacao else 'falta' }}">Renovação automática da conta (refresh token)</li>
+                <li class="{{ 'ok' if ml_acesso_aplicativo else 'falta' }}">Acesso do aplicativo (alternativa quando falta a renovação)</li>
+            </ul>
+            <p class="diagnostico">{{ ml_diagnostico or 'Nenhuma atividade registrada ainda.' }}</p>
+            <p><a href="/mercadolivre">Abrir a página de conexão do Mercado Livre</a></p>
+        </section>
+
+        <section class="cartao">
+            <h2>AliExpress <small>{{ ofertas.get('aliexpress', 0) }} ofertas no ar</small></h2>
+            <ul class="status">
+                <li class="{{ 'ok' if aliexpress_configurado else 'falta' }}">
+                    {% if aliexpress_configurado %}Chaves cadastradas{% else %}Falta cadastrar no Render: {{ faltando_aliexpress | join(', ') }}{% endif %}
+                </li>
+            </ul>
+            <p class="diagnostico">{{ aliexpress_diagnostico or 'Nenhuma atividade registrada ainda.' }}</p>
+        </section>
+
+        <section class="cartao">
+            <h2>Amazon <small>{{ ofertas.get('amazon', 0) }} ofertas no ar</small></h2>
+            <p>Aguardando a liberação da Creators API. Enquanto isso, a busca do site leva à Amazon com a tag de afiliado.</p>
+        </section>
+
+        <section class="cartao">
+            <h2>WhatsApp <small>{{ grupos }} grupo(s) ativado(s)</small></h2>
+            <ul class="status">
+                <li class="ok">Senha do bot cadastrada (WHATSAPP_BOT_TOKEN)</li>
+                <li class="{{ 'ok' if link_grupo else 'falta' }}">{% if link_grupo %}Link do grupo no site: {{ link_grupo }}{% else %}Nenhum grupo ativado: escreva !ativar no grupo pelo celular do bot{% endif %}</li>
+            </ul>
+        </section>
+        {% endif %}
+    </main>
+    <script>
+        // Mostra a data da última varredura no horário de quem está vendo
+        document.querySelectorAll('.data[data-iso]').forEach(el => {
+            if (el.dataset.iso) el.textContent = new Date(el.dataset.iso).toLocaleString('pt-BR');
+        });
+    </script>
+</body>
+</html>
