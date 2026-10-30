@@ -23,7 +23,8 @@ from database import (
     agora_utc,
     data_iso,
 )
-from scraper import buscar_ofertas_afiliados, CATEGORIAS, LOJAS
+from collections import deque
+from scraper import buscar_ofertas_afiliados, pesquisar_nas_lojas, link_busca_amazon, CATEGORIAS, LOJAS
 import mercadolivre
 from whatsapp import interpretar_mensagem, texto_oferta
 
@@ -97,6 +98,56 @@ def api_ofertas():
     # Só as ofertas publicadas dentro do prazo de validade
     ofertas = buscar_ofertas_db(HORAS_VALIDADE_OFERTA)
     return jsonify(ofertas)
+
+
+# Busca do cliente nas lojas: guarda cada resultado por 15 minutos e limita
+# a 8 buscas por minuto por pessoa, para não estourar o limite das APIs
+CACHE_BUSCA_SEGUNDOS = 900
+BUSCAS_POR_MINUTO = 8
+cache_buscas = {}
+buscas_recentes = {}
+trava_busca = threading.Lock()
+
+
+def ip_do_visitante():
+    # No Render o pedido passa por um proxy; o IP real vem no X-Forwarded-For
+    encaminhado = request.headers.get("X-Forwarded-For", "")
+    return encaminhado.split(",")[0].strip() or request.remote_addr or ""
+
+
+@app.route("/api/buscar", methods=["GET"])
+def buscar_nas_lojas():
+    termo = " ".join((request.args.get("q") or "").split())[:80]
+    if len(termo) < 2:
+        return jsonify({"status": "erro", "mensagem": "Digite pelo menos 2 letras"}), 400
+
+    agora = time.time()
+    chave = termo.lower()
+    with trava_busca:
+        guardado = cache_buscas.get(chave)
+        if guardado and agora - guardado[0] < CACHE_BUSCA_SEGUNDOS:
+            return jsonify(guardado[1])
+
+        historico = buscas_recentes.setdefault(ip_do_visitante(), deque())
+        while historico and agora - historico[0] > 60:
+            historico.popleft()
+        if len(historico) >= BUSCAS_POR_MINUTO:
+            return jsonify({"status": "erro", "mensagem": "Muitas buscas seguidas. Espere um minuto."}), 429
+        historico.append(agora)
+
+    try:
+        resultados = pesquisar_nas_lojas(termo)
+    except Exception as e:
+        print(f"Erro na busca do cliente '{termo}': {e}")
+        resultados = []
+
+    resposta = {"termo": termo, "resultados": resultados, "amazon": link_busca_amazon(termo)}
+    with trava_busca:
+        if len(cache_buscas) > 300:
+            cache_buscas.clear()
+        if resultados:
+            cache_buscas[chave] = (agora, resposta)
+    return jsonify(resposta)
 
 
 @app.route("/api/status", methods=["GET"])
@@ -299,7 +350,8 @@ def conectar_mercadolivre():
         return pagina_mercadolivre(status=403)
     if not mercadolivre.configurado():
         return pagina_mercadolivre("Cadastre ML_CLIENT_ID e ML_CLIENT_SECRET no Render antes de conectar.", erro=True)
-    return redirect(mercadolivre.gerar_link_autorizacao(endereco_retorno_mercadolivre()))
+    usar_pkce = request.args.get("pkce", "1") != "0"
+    return redirect(mercadolivre.gerar_link_autorizacao(endereco_retorno_mercadolivre(), usar_pkce))
 
 
 @app.route("/mercadolivre/retorno")

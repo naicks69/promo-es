@@ -62,20 +62,26 @@ def link_afiliado_mercadolivre(link):
 # AUTORIZAÇÃO DA CONTA (OAuth com PKCE)
 # ==========================================
 
-def gerar_link_autorizacao(endereco_retorno):
-    """Monta o link que leva à tela do Mercado Livre onde você autoriza o aplicativo."""
+def gerar_link_autorizacao(endereco_retorno, usar_pkce=True):
+    """Monta o link que leva à tela do Mercado Livre onde você autoriza o aplicativo.
+
+    O PKCE (code_challenge) deve acompanhar a opção PKCE do aplicativo: se ela estiver
+    desligada no site de desenvolvedores, conecte com usar_pkce=False.
+    """
     estado = secrets.token_urlsafe(24)
-    verificador = secrets.token_urlsafe(64)
-    desafio = base64.urlsafe_b64encode(hashlib.sha256(verificador.encode()).digest()).decode().rstrip("=")
-    gravar_configuracao("ml_oauth_estado", f"{estado}|{verificador}")
     parametros = {
         "response_type": "code",
         "client_id": ML_CLIENT_ID,
         "redirect_uri": endereco_retorno,
         "state": estado,
-        "code_challenge": desafio,
-        "code_challenge_method": "S256",
     }
+    verificador = ""
+    if usar_pkce:
+        verificador = secrets.token_urlsafe(64)
+        desafio = base64.urlsafe_b64encode(hashlib.sha256(verificador.encode()).digest()).decode().rstrip("=")
+        parametros["code_challenge"] = desafio
+        parametros["code_challenge_method"] = "S256"
+    gravar_configuracao("ml_oauth_estado", f"{estado}|{verificador}")
     return f"{URL_AUTORIZACAO}?{urlencode(parametros)}"
 
 
@@ -107,12 +113,10 @@ def concluir_autorizacao(codigo, estado, endereco_retorno):
     if not estado or estado != estado_esperado:
         raise RuntimeError("Pedido de autorização expirado ou inválido. Clique em Conectar de novo.")
 
-    dados = _pedir_token({
-        "grant_type": "authorization_code",
-        "code": codigo,
-        "redirect_uri": endereco_retorno,
-        "code_verifier": verificador,
-    })
+    campos = {"grant_type": "authorization_code", "code": codigo, "redirect_uri": endereco_retorno}
+    if verificador:
+        campos["code_verifier"] = verificador
+    dados = _pedir_token(campos)
     _salvar_tokens(dados)
     gravar_configuracao("ml_oauth_estado", "")
     if not dados.get("refresh_token"):
@@ -152,8 +156,12 @@ def imagem_grande(url):
     return url.replace("-I.jpg", "-O.jpg").replace("-I.webp", "-O.webp")
 
 
-def buscar_produtos_mercadolivre(palavra_chave, categoria, limite, pagina=1):
-    """Procura produtos com desconto no Mercado Livre e devolve com link de afiliado."""
+def buscar_produtos_mercadolivre(palavra_chave, categoria, limite, pagina=1, so_promocoes=True):
+    """Procura produtos no Mercado Livre e devolve com link de afiliado.
+
+    Nas varreduras (so_promocoes=True) só entram produtos com desconto, ordenados pelo
+    que mais deve render. Na busca do cliente, entram todos, na ordem de relevância.
+    """
     token = token_de_acesso()
     if not token:
         return []
@@ -184,10 +192,9 @@ def buscar_produtos_mercadolivre(palavra_chave, categoria, limite, pagina=1):
             continue
 
         # Promoção = preço atual menor que o anterior, com desconto mínimo
-        if not preco_original or preco_original <= preco:
-            continue
-        desconto = (preco_original - preco) / preco_original * 100
-        if desconto < ML_DESCONTO_MINIMO:
+        tem_desconto = bool(preco_original) and preco_original > preco
+        desconto = (preco_original - preco) / preco_original * 100 if tem_desconto else 0
+        if so_promocoes and desconto < ML_DESCONTO_MINIMO:
             continue
 
         vendas = int(produto.get("sold_quantity") or 0)
@@ -195,7 +202,7 @@ def buscar_produtos_mercadolivre(palavra_chave, categoria, limite, pagina=1):
             "id": f"mercadolivre_{produto['id']}",
             "titulo": titulo,
             "preco": round(float(preco), 2),
-            "preco_original": round(float(preco_original), 2),
+            "preco_original": round(float(preco_original), 2) if tem_desconto else None,
             "link": link_afiliado_mercadolivre(link),
             "categoria": categoria,
             "loja": "mercadolivre",
@@ -208,5 +215,6 @@ def buscar_produtos_mercadolivre(palavra_chave, categoria, limite, pagina=1):
             ),
         })
 
-    ofertas.sort(key=lambda o: o["pontuacao"], reverse=True)
+    if so_promocoes:
+        ofertas.sort(key=lambda o: o["pontuacao"], reverse=True)
     return ofertas[:limite]

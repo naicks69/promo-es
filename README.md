@@ -34,6 +34,14 @@ As variáveis de ambiente estão explicadas em `.env.example`.
   Mercado Livre não informa a comissão de cada produto).
 - **WhatsApp:** o bot manda primeiro as ofertas com maior pontuação.
 
+## Busca do cliente nas lojas
+
+Quando o cliente digita algo na busca do site, aparece o botão **Buscar nas lojas**:
+o site procura o termo na Shopee e no Mercado Livre (mesmo produtos sem promoção) e
+mostra os resultados com link de afiliado, mais um botão para ver os resultados na
+Amazon com a tag `vidinhaoferta-20`. Rota: `GET /api/buscar?q=termo` (resultados
+guardados por 15 min, até 8 buscas por minuto por visitante).
+
 ## Conectar o Mercado Livre
 
 1. Em **developers.mercadolivre.com.br**, entre com a conta do Mercado Livre e crie
@@ -44,6 +52,11 @@ As variáveis de ambiente estão explicadas em `.env.example`.
 4. Copie o **Client ID** e o **Client Secret** e cadastre no Render como
    `ML_CLIENT_ID` e `ML_CLIENT_SECRET`.
 5. Abra `/mercadolivre?senha=SUA_SENHA` e clique em **Conectar Mercado Livre**.
+
+Se o Mercado Livre mostrar "não foi possível conectar o aplicativo à sua conta":
+confira se a URI de redirect do aplicativo é idêntica à mostrada na página, se você
+entrou com a conta principal (não um colaborador) e, se o PKCE estiver desligado no
+aplicativo, use o link **Conectar sem PKCE** da mesma página.
 
 Para integrar uma loja nova, crie a função de busca em `scraper.py` e inclua-a em
 `FONTES_DE_OFERTAS`. Ela deve devolver ofertas com `link` de afiliado e `loja`
