@@ -435,6 +435,62 @@
             color: var(--tinta-suave);
         }
 
+        /* ---------- Busca do cliente nas lojas ---------- */
+        .busca-lojas {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 8px 0 4px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            background: var(--papel);
+            border: 1.5px dashed #C3CAD8;
+        }
+        .busca-lojas[hidden], .resultados-lojas[hidden] { display: none; }
+        .busca-lojas p { margin: 0; flex: 1; font-size: 14px; color: var(--tinta-suave); }
+        .busca-lojas b { color: var(--tinta); }
+        .busca-lojas button, .fechar-resultados {
+            flex: none;
+            height: 40px;
+            padding: 0 14px;
+            border: 0;
+            border-radius: 10px;
+            background: var(--tinta);
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .resultados-lojas {
+            margin: 12px 0 4px;
+            padding: 16px;
+            border-radius: 16px;
+            background: #E9ECF3;
+            scroll-margin-top: 72px;
+        }
+        .resultados-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+        .resultados-topo h2 { margin: 0; font-size: 20px; line-height: 1.15; letter-spacing: -0.02em; }
+        .resultados-topo p { margin: 4px 0 0; font-size: 14px; color: var(--tinta-suave); }
+        .fechar-resultados { background: var(--papel); color: var(--tinta); border: 1.5px solid var(--linha); }
+        .vitrine.vitrine-busca { padding: 14px 0 14px; }
+        .carregando-busca, .sem-resultados { margin: 0; color: var(--tinta-suave); }
+        .sem-resultados { padding: 8px 0 14px; }
+        .botao-amazon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 48px;
+            padding: 8px 16px;
+            border-radius: 12px;
+            background: var(--amazon);
+            color: var(--amazon-texto);
+            font-weight: 700;
+            text-align: center;
+            text-decoration: none;
+        }
+        @media (max-width: 480px) {
+            .busca-lojas { flex-direction: column; align-items: stretch; }
+        }
+
         /* ---------- Vitrine ---------- */
         .vitrine {
             display: grid;
@@ -831,7 +887,7 @@
             <div class="linha-busca">
                 <label class="busca">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-                    <input type="search" id="busca" placeholder="Buscar" aria-label="Buscar produto" oninput="aplicarFiltros()">
+                    <input type="search" id="busca" placeholder="Buscar" aria-label="Buscar produto" oninput="aplicarFiltros()" onkeydown="if (event.key === 'Enter') buscarNasLojas()" enterkeyhint="search">
                 </label>
                 <select id="ordenar" class="ordenar" aria-label="Ordenar ofertas" onchange="aplicarFiltros()">
                     <option value="recentes">Mais recentes</option>
@@ -843,6 +899,12 @@
             <div class="categorias" id="categorias" role="group" aria-label="Categorias"></div>
         </div>
         <p class="resumo" id="resumo"></p>
+
+        <div class="busca-lojas" id="busca-lojas" hidden>
+            <p>Procurando algo específico? Busque <b id="termo-busca"></b> direto nas lojas, mesmo fora das promoções.</p>
+            <button type="button" onclick="buscarNasLojas()">Buscar nas lojas</button>
+        </div>
+        <section class="resultados-lojas" id="resultados-lojas" hidden aria-live="polite"></section>
 
         <div class="vitrine" id="vitrine" aria-live="polite"></div>
     </main>
@@ -1060,6 +1122,10 @@
                 : (filtrando ? (lista.length === 1 ? '1 oferta encontrada' : `${lista.length} ofertas encontradas`) : '');
             document.getElementById('contador-favoritos').textContent = favoritos.length;
 
+            const caixaBusca = document.getElementById('busca-lojas');
+            caixaBusca.hidden = texto.length < 2 || soFavoritos;
+            document.getElementById('termo-busca').textContent = `“${document.getElementById('busca').value.trim()}”`;
+
             renderizar(lista);
         }
 
@@ -1069,6 +1135,11 @@
             if (lista.length === 0) {
                 let titulo = 'Nenhuma oferta com esses filtros';
                 let dica = 'Tente outra palavra ou escolha "Tudo" nas categorias.';
+                const textoBusca = document.getElementById('busca').value.trim();
+                if (!soFavoritos && textoBusca.length >= 2) {
+                    titulo = `Nenhuma promoção com “${escaparHtml(textoBusca)}” agora`;
+                    dica = 'Toque em "Buscar nas lojas" acima para ver o produto direto na Shopee, no Mercado Livre e na Amazon.';
+                }
                 if (soFavoritos) {
                     titulo = 'Você ainda não tem favoritos';
                     dica = 'Toque no coração de uma oferta para guardá-la aqui.';
@@ -1080,43 +1151,88 @@
                 return;
             }
 
-            vitrine.innerHTML = lista.map(produto => {
-                const id = escaparHtml(produto.id);
-                const titulo = escaparHtml(produto.titulo);
-                const link = escaparHtml(produto.link);
-                const chaveLoja = escaparHtml(produto.loja || '');
-                const loja = escaparHtml(NOMES_LOJAS[produto.loja] || produto.loja || 'loja');
-                const favorito = favoritos.includes(produto.id);
-                const minutos = minutosDesde(produto.publicado_em);
-                const nova = minutos !== null && minutos < MINUTOS_NOVA;
-                const detalhes = [textoVendidos(produto.vendas), minutos !== null ? tempoRelativo(minutos) : '']
-                    .filter(Boolean).join(' · ');
-                return `
-                    <article class="oferta">
-                        <a class="foto" href="${link}" target="_blank" rel="noopener sponsored" tabindex="-1" aria-hidden="true">
-                            ${produto.imagem ? `<img src="${escaparHtml(produto.imagem)}" alt="" loading="lazy">` : ''}
-                            ${nova ? '<span class="selo-nova">Nova</span>' : ''}
-                            <span class="selo-loja ${chaveLoja}">${loja}</span>
-                        </a>
-                        <button type="button" class="fav" data-id="${id}" aria-pressed="${favorito}"
-                                aria-label="${favorito ? 'Remover dos favoritos' : 'Salvar nos favoritos'}"
-                                onclick="alternarFavorito(this.dataset.id)">${ICONE_CORACAO}</button>
-                        <div class="info">
-                            <a class="titulo" href="${link}" target="_blank" rel="noopener sponsored">${titulo}</a>
-                            ${detalhes ? `<p class="detalhes">${detalhes}</p>` : ''}
-                            ${precoAntigo(produto.preco, produto.preco_original)}
-                            ${etiquetaPreco(produto.preco)}
-                            <div class="acoes">
-                                <a class="comprar" href="${link}" target="_blank" rel="noopener sponsored"><span class="so-tela-grande">Ver ${escaparHtml(naLoja(produto.loja))}</span><span class="so-celular">Ver oferta</span></a>
-                                <button type="button" class="compartilhar" aria-label="Compartilhar oferta"
-                                        data-link="${link}" data-titulo="${titulo}"
-                                        onclick="compartilhar(this.dataset.titulo, this.dataset.link)">${ICONE_COMPARTILHAR}</button>
-                            </div>
-                        </div>
-                    </article>`;
-            }).join('');
+            vitrine.innerHTML = lista.map(produto => cartaoOferta(produto)).join('');
 
             inserirChamadaGrupo(vitrine);
+        }
+
+        function cartaoOferta(produto, comFavorito = true) {
+            const id = escaparHtml(produto.id);
+            const titulo = escaparHtml(produto.titulo);
+            const link = escaparHtml(produto.link);
+            const chaveLoja = escaparHtml(produto.loja || '');
+            const loja = escaparHtml(NOMES_LOJAS[produto.loja] || produto.loja || 'loja');
+            const favorito = favoritos.includes(produto.id);
+            const minutos = minutosDesde(produto.publicado_em);
+            const nova = minutos !== null && minutos < MINUTOS_NOVA;
+            const detalhes = [textoVendidos(produto.vendas), minutos !== null ? tempoRelativo(minutos) : '']
+                .filter(Boolean).join(' · ');
+            return `
+                <article class="oferta">
+                    <a class="foto" href="${link}" target="_blank" rel="noopener sponsored" tabindex="-1" aria-hidden="true">
+                        ${produto.imagem ? `<img src="${escaparHtml(produto.imagem)}" alt="" loading="lazy">` : ''}
+                        ${nova ? '<span class="selo-nova">Nova</span>' : ''}
+                        <span class="selo-loja ${chaveLoja}">${loja}</span>
+                    </a>
+                    ${comFavorito ? `<button type="button" class="fav" data-id="${id}" aria-pressed="${favorito}"
+                            aria-label="${favorito ? 'Remover dos favoritos' : 'Salvar nos favoritos'}"
+                            onclick="alternarFavorito(this.dataset.id)">${ICONE_CORACAO}</button>` : ''}
+                    <div class="info">
+                        <a class="titulo" href="${link}" target="_blank" rel="noopener sponsored">${titulo}</a>
+                        ${detalhes ? `<p class="detalhes">${detalhes}</p>` : ''}
+                        ${precoAntigo(produto.preco, produto.preco_original)}
+                        ${etiquetaPreco(produto.preco)}
+                        <div class="acoes">
+                            <a class="comprar" href="${link}" target="_blank" rel="noopener sponsored"><span class="so-tela-grande">Ver ${escaparHtml(naLoja(produto.loja))}</span><span class="so-celular">Ver oferta</span></a>
+                            <button type="button" class="compartilhar" aria-label="Compartilhar oferta"
+                                    data-link="${link}" data-titulo="${titulo}"
+                                    onclick="compartilhar(this.dataset.titulo, this.dataset.link)">${ICONE_COMPARTILHAR}</button>
+                        </div>
+                    </div>
+                </article>`;
+    }
+
+        // ---------- Busca do cliente nas lojas ----------
+        async function buscarNasLojas() {
+            const termo = document.getElementById('busca').value.trim();
+            if (termo.length < 2) return;
+            const area = document.getElementById('resultados-lojas');
+            area.hidden = false;
+            area.innerHTML = `<p class="carregando-busca">Procurando “${escaparHtml(termo)}” na Shopee e no Mercado Livre…</p>`;
+            area.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            try {
+                const resposta = await fetch(`/api/buscar?q=${encodeURIComponent(termo)}`);
+                const dados = await resposta.json();
+                if (!resposta.ok) throw new Error(dados.mensagem || 'Não foi possível buscar agora.');
+
+                const termoHtml = escaparHtml(dados.termo);
+                const cartoes = dados.resultados.map(produto => cartaoOferta(produto, false)).join('');
+                area.innerHTML = `
+                    <div class="resultados-topo">
+                        <div>
+                            <h2>Resultados para “${termoHtml}” nas lojas</h2>
+                            <p>Preços normais das lojas, nem sempre em promoção.</p>
+                        </div>
+                        <button type="button" class="fechar-resultados" onclick="fecharResultados()">Fechar</button>
+                    </div>
+                    ${cartoes
+                        ? `<div class="vitrine vitrine-busca">${cartoes}</div>`
+                        : `<p class="sem-resultados">Não encontramos “${termoHtml}” na Shopee e no Mercado Livre agora.</p>`}
+                    <a class="botao-amazon" href="${escaparHtml(dados.amazon)}" target="_blank" rel="noopener sponsored">Ver resultados para “${termoHtml}” na Amazon</a>`;
+            } catch (erro) {
+                area.innerHTML = `
+                    <div class="resultados-topo">
+                        <p class="sem-resultados">${escaparHtml(erro.message)}</p>
+                        <button type="button" class="fechar-resultados" onclick="fecharResultados()">Fechar</button>
+                    </div>`;
+            }
+        }
+
+        function fecharResultados() {
+            const area = document.getElementById('resultados-lojas');
+            area.hidden = true;
+            area.innerHTML = '';
         }
 
         // Coloca a chamada do grupo depois da 4ª oferta, com a prévia da oferta mais nova

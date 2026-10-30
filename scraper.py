@@ -3,6 +3,7 @@ import json
 import math
 import time
 import os
+from urllib.parse import quote_plus
 import requests
 from dotenv import load_dotenv
 
@@ -29,6 +30,10 @@ VENDAS_MINIMAS = int(os.getenv("VENDAS_MINIMAS", "10"))
 # A cada varredura o bot lê a página seguinte dos resultados (1, 2, 3... e volta à 1),
 # para trazer produtos diferentes a cada ciclo em vez de repetir sempre os mesmos.
 PAGINAS_ROTACAO = int(os.getenv("PAGINAS_ROTACAO", "10"))
+
+# Tag de afiliado da Amazon (Associates). Enquanto a Creators API não é liberada,
+# é usada no link "Ver resultados na Amazon" da busca do site.
+AMAZON_TAG = os.getenv("AMAZON_TAG", "vidinhaoferta-20")
 
 # Lojas que o site exibe. A ordem aqui é a ordem dos botões no site.
 LOJAS = {
@@ -139,15 +144,17 @@ def pontuacao_comissao(preco, taxa, vendas):
     return preco * taxa * math.log10(vendas + 10)
 
 
-def buscar_produtos_shopee(palavra_chave, categoria, limite=PRODUTOS_POR_BUSCA, pagina=1):
+def buscar_produtos_shopee(palavra_chave, categoria, limite=PRODUTOS_POR_BUSCA, pagina=1,
+                           ordem=2, escolher_por_comissao=True):
     """Procura produtos reais na Shopee e já devolve o link de afiliado de cada um.
 
-    Analisa CANDIDATOS_POR_BUSCA produtos mais vendidos e fica com os `limite` que
-    mais devem render em comissão. O campo offerLink da API é o link de afiliado
-    que leva direto à página do produto, com a comissão rastreada.
+    Nas varreduras (escolher_por_comissao=True), analisa CANDIDATOS_POR_BUSCA produtos
+    mais vendidos e fica com os `limite` que mais devem render em comissão. Na busca do
+    cliente, mantém a ordem de relevância da Shopee (ordem=1). O campo offerLink da API
+    é o link de afiliado que leva direto à página do produto, com a comissão rastreada.
     """
     query = f"""{{
-    productOfferV2(keyword: {json.dumps(palavra_chave, ensure_ascii=False)}, sortType: 2, page: {int(pagina)}, limit: {int(max(limite, CANDIDATOS_POR_BUSCA))}) {{
+    productOfferV2(keyword: {json.dumps(palavra_chave, ensure_ascii=False)}, sortType: {int(ordem)}, page: {int(pagina)}, limit: {int(max(limite, CANDIDATOS_POR_BUSCA))}) {{
         nodes {{
             itemId
             shopId
@@ -189,7 +196,9 @@ def buscar_produtos_shopee(palavra_chave, categoria, limite=PRODUTOS_POR_BUSCA, 
 
         taxa = taxa_comissao(produto.get("commissionRate"))
         vendas = int(produto.get("sales") or 0)
-        if taxa * 100 < COMISSAO_MINIMA or vendas < VENDAS_MINIMAS:
+        if taxa * 100 < COMISSAO_MINIMA:
+            continue
+        if escolher_por_comissao and vendas < VENDAS_MINIMAS:
             continue
 
         ofertas.append({
@@ -205,7 +214,8 @@ def buscar_produtos_shopee(palavra_chave, categoria, limite=PRODUTOS_POR_BUSCA, 
         })
 
     # Fica com os produtos que mais devem render comissão
-    ofertas.sort(key=lambda o: o["pontuacao"], reverse=True)
+    if escolher_por_comissao:
+        ofertas.sort(key=lambda o: o["pontuacao"], reverse=True)
     return ofertas[:limite]
 
 
@@ -256,6 +266,32 @@ def buscar_ofertas_mercadolivre(pagina):
                 todas_as_ofertas.append(oferta)
         time.sleep(1)
     return todas_as_ofertas
+
+
+def link_busca_amazon(termo):
+    """Página de resultados da Amazon com a tag de afiliado (vale comissão)."""
+    return f"https://www.amazon.com.br/s?k={quote_plus(termo)}&tag={quote_plus(AMAZON_TAG)}"
+
+
+def pesquisar_nas_lojas(termo, limite=12):
+    """Busca do cliente: produtos que ele procura, mesmo sem promoção, com link de afiliado."""
+    resultados_por_loja = []
+    if credenciais_configuradas():
+        resultados_por_loja.append(
+            buscar_produtos_shopee(termo, "busca", limite, ordem=1, escolher_por_comissao=False)
+        )
+    if mercadolivre.configurado() and mercadolivre.conectado():
+        resultados_por_loja.append(
+            mercadolivre.buscar_produtos_mercadolivre(termo, "busca", limite, so_promocoes=False)
+        )
+
+    # Intercala as lojas (1 da Shopee, 1 do Mercado Livre...) para o cliente comparar
+    intercalados = []
+    for posicao in range(limite):
+        for resultados in resultados_por_loja:
+            if posicao < len(resultados):
+                intercalados.append(resultados[posicao])
+    return intercalados[:limite]
 
 
 # Cada loja integrada entra nesta lista com a sua função de busca

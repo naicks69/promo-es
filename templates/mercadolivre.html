@@ -64,6 +64,8 @@
             text-decoration: none;
             cursor: pointer;
         }
+        .dica { margin: 14px 0 0 !important; font-size: 14px; }
+        .dica a { color: var(--tinta); font-weight: 600; }
         .botao.ml { background: var(--ml); color: var(--ml-texto); width: 100%; height: 52px; font-size: 17px; }
         input {
             width: 100%;
@@ -122,6 +124,8 @@
             {% if configurado %}
             <p>Você vai para o Mercado Livre, entra com a sua conta e clica em <b>Permitir</b>. Depois volta para cá sozinho.</p>
             <a class="botao ml" href="/mercadolivre/conectar?senha={{ senha | urlencode }}">Conectar Mercado Livre</a>
+            <p class="dica">Apareceu "não foi possível conectar o aplicativo à sua conta"? Confira se o endereço de retorno acima está idêntico no aplicativo e tente de novo. Se o PKCE estiver desligado no aplicativo, use:
+                <a href="/mercadolivre/conectar?senha={{ senha | urlencode }}&amp;pkce=0">Conectar sem PKCE</a></p>
             {% else %}
             <p>Primeiro cadastre ML_CLIENT_ID e ML_CLIENT_SECRET no Render e espere o site reiniciar.</p>
             {% endif %}
