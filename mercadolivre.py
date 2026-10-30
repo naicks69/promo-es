@@ -31,8 +31,8 @@ ML_AFILIADO_FERRAMENTA = os.getenv("ML_AFILIADO_FERRAMENTA", "95146766")
 ML_DESCONTO_MINIMO = float(os.getenv("ML_DESCONTO_MINIMO", "0"))
 
 # O Mercado Livre fica com produtos de mais qualidade: abaixo deste preço o produto
-# fica para a Shopee (que traz os itens mais básicos)
-ML_PRECO_MINIMO = float(os.getenv("ML_PRECO_MINIMO", "100"))
+# fica para a Shopee (que traz os itens mais básicos, até R$ 100)
+ML_PRECO_MINIMO = float(os.getenv("ML_PRECO_MINIMO", "75"))
 
 # O Mercado Livre não informa a comissão de cada produto. Esta taxa estimada só serve
 # para comparar as ofertas dele com as da Shopee na hora de escolher o que vai no WhatsApp.
@@ -476,8 +476,12 @@ def montar_oferta(detalhe, categoria):
         "imagem": detalhe.get("imagem") or "",
         "vendas": int(detalhe.get("vendas") or 0),
         "desconto": desconto,
-        # Mesma conta da Shopee (comissão estimada × popularidade), com bônus pelo desconto
+        # Mesma conta da Shopee (comissão estimada × popularidade, com bônus pelo desconto),
+        # usada para comparar as lojas na hora de escolher o que vai no WhatsApp
         "pontuacao": round(preco * ML_COMISSAO_ESTIMADA * math.log10(popularidade + 10) * (1 + desconto / 100), 4),
+        # Ordem dentro do Mercado Livre: quem mais vende primeiro; o preço pesa pouco,
+        # para um produto caro e pouco vendido não passar na frente de um campeão de vendas
+        "prioridade": round(math.log10(popularidade + 10) ** 3 * preco ** 0.3 * (1 + desconto / 100), 4),
     }
 
 
@@ -525,7 +529,7 @@ def buscar_ofertas_da_categoria(categoria_site, palavras_chave, limite, pagina=1
         else:
             ofertas.append(oferta)
 
-    ofertas.sort(key=lambda o: o["pontuacao"], reverse=True)
+    ofertas.sort(key=lambda o: o["prioridade"], reverse=True)
     return ofertas[:limite], len(categorias_ml)
 
 
