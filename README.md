@@ -47,7 +47,7 @@ guardados por 15 min, até 8 buscas por minuto por visitante).
 1. Em **developers.mercadolivre.com.br**, entre com a conta do Mercado Livre e crie
    um aplicativo (Minhas aplicações > Criar nova aplicação).
 2. No campo **URIs de redirect**, cole o endereço mostrado na página
-   `/mercadolivre?senha=SUA_SENHA` do site (é `https://SEU-SITE.onrender.com/mercadolivre/retorno`).
+   `/mercadolivre` do site (é `https://SEU-SITE.onrender.com/mercadolivre/retorno`).
 3. Nas permissões, marque leitura e **offline_access** (para a conexão não expirar).
 4. Copie o **Client ID** e o **Client Secret** e cadastre no Render como
    `ML_CLIENT_ID` e `ML_CLIENT_SECRET`.
