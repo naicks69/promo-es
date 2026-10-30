@@ -6,6 +6,7 @@ import math
 import os
 import secrets
 import time
+from collections import Counter
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import requests
@@ -65,8 +66,17 @@ def ultimo_diagnostico():
     return ler_configuracao("ml_diagnostico", "")
 
 
-# Erros da varredura em andamento (resumidos no fim por resumir_varredura)
+# Erros e contagens de cada etapa da varredura em andamento (resumidos no fim por
+# resumir_varredura e mostrados no painel /admin, para saber onde os produtos se perdem)
 erros_da_varredura = []
+etapas = Counter()
+exemplos_de_descarte = {}
+
+
+def contar(etapa, quantidade=1, exemplo=None):
+    etapas[etapa] += quantidade
+    if exemplo and etapa not in exemplos_de_descarte:
+        exemplos_de_descarte[etapa] = str(exemplo)[:160]
 
 
 def registrar_erro_de_busca(mensagem):
@@ -79,9 +89,15 @@ def resumir_varredura(total_categorias, total_ofertas):
         f"última varredura (mais vendidos): {total_categorias} categorias do Mercado Livre, "
         f"{total_ofertas} produtos com link de afiliado."
     )
+    if etapas:
+        resumo += " Etapas: " + ", ".join(f"{nome}: {total}" for nome, total in sorted(etapas.items())) + "."
+    if exemplos_de_descarte:
+        resumo += " Exemplos: " + " | ".join(f"{nome} → {exemplo}" for nome, exemplo in exemplos_de_descarte.items())
     if erros_da_varredura:
-        resumo += f" {len(erros_da_varredura)} busca(s) com erro. Primeiro erro: {erros_da_varredura[0]}"
+        resumo += f" {len(erros_da_varredura)} erro(s). Primeiro erro: {erros_da_varredura[0]}"
     erros_da_varredura.clear()
+    etapas.clear()
+    exemplos_de_descarte.clear()
     registrar_diagnostico(resumo)
 
 
@@ -291,11 +307,15 @@ def mais_vendidos(categoria_id):
     if guardado and time.time() - guardado[0] < CACHE_MAIS_VENDIDOS_SEGUNDOS:
         return guardado[1]
     dados = _consultar(f"/highlights/MLB/category/{categoria_id}")
+    if not dados.get("content"):
+        contar("categoria sem mais vendidos", exemplo=f"{categoria_id}: {str(dados)[:120]}")
     lista = [
         (item["id"], item.get("type", "ITEM"), item.get("position") or posicao + 1)
         for posicao, item in enumerate(dados.get("content", []))
         if item.get("id")
     ]
+    for _, tipo, _ in lista:
+        contar(f"códigos {tipo}")
     _cache_mais_vendidos[categoria_id] = (time.time(), lista)
     return lista
 
@@ -305,8 +325,19 @@ def _detalhes_de_produto(codigo):
     dados = _consultar(f"/products/{codigo}")
     vencedor = dados.get("buy_box_winner") or {}
     if not vencedor.get("price"):
-        return None  # Sem vendedor ativo no momento
+        # Sem "vencedor" informado: pega o vendedor mais bem colocado da lista do produto
+        try:
+            vendedores = _consultar(f"/products/{codigo}/items", {"limit": 1}).get("results") or []
+        except ErroApi as e:
+            contar("produto sem preço", exemplo=f"{codigo}: lista de vendedores recusada ({e})")
+            return None
+        if not vendedores or not vendedores[0].get("price"):
+            contar("produto sem vendedor ativo", exemplo=codigo)
+            return None
+        vencedor = vendedores[0]
+        contar("produto com preço pela lista de vendedores")
     fotos = dados.get("pictures") or []
+    contar("produto lido")
     return {
         "codigo": codigo,
         "titulo": dados.get("name"),
@@ -329,8 +360,13 @@ def _detalhes_de_anuncios(codigos):
         })
         for resposta in respostas:
             dados = resposta.get("body") or {}
-            if resposta.get("code") != 200 or dados.get("status", "active") != "active" or not dados.get("price"):
+            if resposta.get("code") != 200:
+                contar(f"anúncio recusado ({resposta.get('code')})", exemplo=dados.get("message") or dados)
                 continue
+            if dados.get("status", "active") != "active" or not dados.get("price"):
+                contar("anúncio inativo ou sem preço", exemplo=dados.get("id"))
+                continue
+            contar("anúncio lido")
             detalhes.append({
                 "codigo": dados["id"],
                 "titulo": dados.get("title"),
@@ -352,6 +388,9 @@ def detalhes_dos_produtos(lista):
         if guardado and agora - guardado[0] < CACHE_DETALHES_SEGUNDOS:
             if guardado[1]:
                 resultado.append({**guardado[1], "posicao": posicao})
+            continue
+        if tipo not in ("PRODUCT", "ITEM"):
+            contar(f"tipo {tipo} ignorado", exemplo=codigo)
             continue
         if tipo == "PRODUCT":
             try:
@@ -430,12 +469,17 @@ def buscar_ofertas_da_categoria(categoria_site, palavras_chave, limite, pagina=1
     ofertas = []
     vistos = set()
     for detalhe in detalhes_dos_produtos(escolhidos):
-        if detalhe["codigo"] in vistos or not detalhe.get("titulo") or not detalhe.get("link"):
+        if detalhe["codigo"] in vistos:
+            continue
+        if not detalhe.get("titulo") or not detalhe.get("link"):
+            contar("sem título ou link", exemplo=detalhe.get("codigo"))
             continue
         vistos.add(detalhe["codigo"])
         oferta = montar_oferta(detalhe, categoria_site)
         if oferta["desconto"] >= ML_DESCONTO_MINIMO:
             ofertas.append(oferta)
+        else:
+            contar("abaixo do desconto mínimo")
 
     ofertas.sort(key=lambda o: o["pontuacao"], reverse=True)
     return ofertas[:limite], len(categorias_ml)
