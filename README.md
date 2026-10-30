@@ -21,7 +21,7 @@ As variáveis de ambiente estão explicadas em `.env.example`.
 | Loja | Situação |
 | --- | --- |
 | Shopee | Integrada (API de Afiliados) |
-| Mercado Livre | Integrado (busca pela API + link de afiliado `matt_word`/`matt_tool`). Precisa do aplicativo e da conexão da conta, veja abaixo |
+| Mercado Livre | Integrado pelos **Mais vendidos** de cada categoria + link de afiliado `matt_word`/`matt_tool`. Precisa do aplicativo e da conexão da conta, veja abaixo |
 | AliExpress | Integrado (API de afiliados: produtos "hot" com comissão maior + link de afiliado com o seu Tracking ID). Precisa de `ALIEXPRESS_APP_KEY`, `ALIEXPRESS_APP_SECRET` e `ALIEXPRESS_TRACKING_ID` |
 | Amazon | Aparece no site como "em breve" até a Creators API ser liberada (tag de afiliado: `vidinhaoferta-20`) |
 
@@ -30,9 +30,13 @@ As variáveis de ambiente estão explicadas em `.env.example`.
 - **Shopee:** cada busca analisa 20 produtos mais vendidos e fica com os 6 que mais
   devem render: preço × % de comissão × popularidade. Produtos com menos de 10
   vendas ficam de fora.
-- **Mercado Livre:** só entram produtos com pelo menos 10% de desconto sobre o preço
-  anterior, ordenados pelo mesmo cálculo (com uma comissão estimada de 5%, porque o
-  Mercado Livre não informa a comissão de cada produto).
+- **Mercado Livre:** a busca aberta da API (`/sites/MLB/search`) é bloqueada para
+  aplicativos comuns (erro 403). Por isso o site descobre a categoria do Mercado Livre
+  de cada palavra-chave, pega os **mais vendidos** dessas categorias e das grandes
+  categorias (Casa, Eletrônicos, Celulares, Games e Moda) e lê preço e foto pelo código
+  de cada produto. Cada varredura lê uma parte diferente da lista, trazendo cerca de 72
+  produtos novos. Produtos com desconto ficam na frente (comissão estimada de 5%,
+  porque o Mercado Livre não informa a comissão de cada produto).
 - **WhatsApp:** o bot manda primeiro as ofertas com maior pontuação.
 
 ## Painel de administração (`/admin`)
