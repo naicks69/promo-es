@@ -247,24 +247,27 @@ def buscar_ofertas_shopee(pagina):
 
 
 def buscar_ofertas_mercadolivre(pagina):
-    """Percorre as buscas no Mercado Livre e devolve as promoções com link de afiliado."""
+    """Pega os mais vendidos do Mercado Livre de cada categoria do site, com link de afiliado."""
     if not mercadolivre.configurado():
         print("⚠️ ML_CLIENT_ID e ML_CLIENT_SECRET não configurados. Nenhuma oferta do Mercado Livre será buscada.")
         return []
 
-    todas_as_ofertas = []
-    ids_vistos = set()
+    palavras_por_categoria = {}
     for busca in BUSCAS:
-        ofertas = mercadolivre.buscar_produtos_mercadolivre(
-            busca["palavra_chave"], busca["categoria"], PRODUTOS_POR_BUSCA, pagina
+        palavras_por_categoria.setdefault(busca["categoria"], []).append(busca["palavra_chave"])
+
+    todas_as_ofertas = []
+    total_categorias_ml = 0
+    for categoria, palavras in palavras_por_categoria.items():
+        # Mesma quantidade de produtos por categoria que a Shopee traz
+        ofertas, categorias_ml = mercadolivre.buscar_ofertas_da_categoria(
+            categoria, palavras, PRODUTOS_POR_BUSCA * len(palavras), pagina
         )
-        print(f"🔎 Mercado Livre '{busca['palavra_chave']}' (página {pagina}): {len(ofertas)} promoções com link de afiliado")
-        for oferta in ofertas:
-            if oferta["id"] not in ids_vistos:
-                ids_vistos.add(oferta["id"])
-                todas_as_ofertas.append(oferta)
-        time.sleep(1)
-    mercadolivre.resumir_varredura(len(BUSCAS), len(todas_as_ofertas))
+        total_categorias_ml += categorias_ml
+        print(f"🔎 Mercado Livre '{categoria}' (página {pagina}): {len(ofertas)} produtos com link de afiliado")
+        todas_as_ofertas.extend(ofertas)
+
+    mercadolivre.resumir_varredura(total_categorias_ml, len(todas_as_ofertas))
     return todas_as_ofertas
 
 

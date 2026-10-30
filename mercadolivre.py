@@ -24,8 +24,9 @@ ML_CLIENT_SECRET = os.getenv("ML_CLIENT_SECRET", "")
 ML_AFILIADO_USUARIO = os.getenv("ML_AFILIADO_USUARIO", "sana8907971")
 ML_AFILIADO_FERRAMENTA = os.getenv("ML_AFILIADO_FERRAMENTA", "95146766")
 
-# Só entram no site produtos com pelo menos este desconto (%) sobre o preço anterior
-ML_DESCONTO_MINIMO = float(os.getenv("ML_DESCONTO_MINIMO", "10"))
+# Desconto mínimo (%) para um produto entrar no site (0 = aceita todos; os com desconto
+# continuam tendo prioridade na pontuação)
+ML_DESCONTO_MINIMO = float(os.getenv("ML_DESCONTO_MINIMO", "0"))
 
 # O Mercado Livre não informa a comissão de cada produto. Esta taxa estimada só serve
 # para comparar as ofertas dele com as da Shopee na hora de escolher o que vai no WhatsApp.
@@ -73,8 +74,11 @@ def registrar_erro_de_busca(mensagem):
     erros_da_varredura.append(mensagem)
 
 
-def resumir_varredura(total_buscas, total_promocoes):
-    resumo = f"última varredura: {total_buscas} buscas, {total_promocoes} promoções com link de afiliado."
+def resumir_varredura(total_categorias, total_ofertas):
+    resumo = (
+        f"última varredura (mais vendidos): {total_categorias} categorias do Mercado Livre, "
+        f"{total_ofertas} produtos com link de afiliado."
+    )
     if erros_da_varredura:
         resumo += f" {len(erros_da_varredura)} busca(s) com erro. Primeiro erro: {erros_da_varredura[0]}"
     erros_da_varredura.clear()
@@ -217,79 +221,277 @@ def acesso_do_aplicativo_ativo():
 
 
 # ==========================================
-# BUSCA DE PROMOÇÕES
+# BUSCA DE PRODUTOS
 # ==========================================
+# O Mercado Livre bloqueia a busca aberta (/sites/MLB/search) para aplicativos comuns
+# (erro 403). Por isso os produtos são encontrados pelos "Mais vendidos" de cada
+# categoria (/highlights) e os detalhes são lidos pelo código do produto, que é liberado.
+
+# Grandes categorias do Mercado Livre usadas para puxar mais produtos em cada área do site
+CATEGORIAS_ML_PRINCIPAIS = {
+    "casa": ["MLB1574"],                   # Casa, Móveis e Decoração
+    "eletronicos": ["MLB1000", "MLB1051"],  # Eletrônicos, Áudio e Vídeo / Celulares e Telefones
+    "gamer": ["MLB1144"],                  # Games
+    "moda": ["MLB1430"],                   # Calçados, Roupas e Bolsas
+}
+
+CACHE_MAIS_VENDIDOS_SEGUNDOS = 3600  # A lista de mais vendidos muda pouco ao longo do dia
+CACHE_DETALHES_SEGUNDOS = 1800       # Preço e foto de cada produto são relidos a cada 30 min
+_cache_mais_vendidos = {}
+_cache_detalhes = {}
+_busca_aberta_bloqueada_ate = 0
+
+
+class ErroApi(Exception):
+    def __init__(self, codigo, texto):
+        super().__init__(f"código {codigo}: {texto}")
+        self.codigo = codigo
+
+
+def _consultar(caminho, params=None):
+    token = token_de_acesso()
+    if not token:
+        raise ErroApi(401, "sem acesso: conecte a conta em /mercadolivre")
+    resposta = requests.get(
+        f"{URL_API}{caminho}", params=params, headers={"Authorization": f"Bearer {token}"}, timeout=20
+    )
+    if resposta.status_code != 200:
+        raise ErroApi(resposta.status_code, resposta.text[:200])
+    return resposta.json()
+
 
 def imagem_grande(url):
-    """A busca devolve miniaturas (-I.jpg); a versão -O.jpg tem boa resolução."""
+    """Miniaturas terminam em -I.jpg; a versão -O.jpg tem boa resolução."""
     if not url:
         return ""
     url = url.replace("http://", "https://", 1)
     return url.replace("-I.jpg", "-O.jpg").replace("-I.webp", "-O.webp")
 
 
-def buscar_produtos_mercadolivre(palavra_chave, categoria, limite, pagina=1, so_promocoes=True):
-    """Procura produtos no Mercado Livre e devolve com link de afiliado.
-
-    Nas varreduras (so_promocoes=True) só entram produtos com desconto, ordenados pelo
-    que mais deve render. Na busca do cliente, entram todos, na ordem de relevância.
-    """
-    token = token_de_acesso()
-    if not token:
-        return []
-
-    por_pagina = 50
+def categoria_da_palavra(palavra_chave):
+    """Descobre a categoria do Mercado Livre de uma palavra-chave (guardada no banco)."""
+    chave = f"ml_categoria:{palavra_chave.lower()}"
+    guardada = ler_configuracao(chave)
+    if guardada:
+        return guardada
     try:
-        resposta = requests.get(
-            f"{URL_API}/sites/MLB/search",
-            params={"q": palavra_chave, "limit": por_pagina, "offset": (pagina - 1) * por_pagina},
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=20,
-        )
-    except Exception as e:
-        registrar_erro_de_busca(f"erro de conexão na busca '{palavra_chave}': {e}")
-        return []
+        resultado = _consultar("/sites/MLB/domain_discovery/search", {"q": palavra_chave, "limit": 1})
+    except ErroApi as e:
+        registrar_erro_de_busca(f"não foi possível descobrir a categoria de '{palavra_chave}' ({e})")
+        return None
+    categoria = resultado[0].get("category_id") if resultado else None
+    if categoria:
+        gravar_configuracao(chave, categoria)
+    return categoria
 
-    if resposta.status_code != 200:
-        registrar_erro_de_busca(
-            f"a API recusou a busca '{palavra_chave}' (código {resposta.status_code}): {resposta.text[:300]}"
-        )
-        return []
 
-    resultados = resposta.json().get("results", [])
-    ofertas = []
-    for produto in resultados:
-        preco = produto.get("price")
-        preco_original = produto.get("original_price")
-        link = produto.get("permalink")
-        titulo = (produto.get("title") or "").strip()
-        if not (produto.get("id") and titulo and link and preco):
-            continue
+def mais_vendidos(categoria_id):
+    """Lista de mais vendidos da categoria: [(código, tipo, posição)]."""
+    guardado = _cache_mais_vendidos.get(categoria_id)
+    if guardado and time.time() - guardado[0] < CACHE_MAIS_VENDIDOS_SEGUNDOS:
+        return guardado[1]
+    dados = _consultar(f"/highlights/MLB/category/{categoria_id}")
+    lista = [
+        (item["id"], item.get("type", "ITEM"), item.get("position") or posicao + 1)
+        for posicao, item in enumerate(dados.get("content", []))
+        if item.get("id")
+    ]
+    _cache_mais_vendidos[categoria_id] = (time.time(), lista)
+    return lista
 
-        # Promoção = preço atual menor que o anterior, com desconto mínimo
-        tem_desconto = bool(preco_original) and preco_original > preco
-        desconto = (preco_original - preco) / preco_original * 100 if tem_desconto else 0
-        if so_promocoes and desconto < ML_DESCONTO_MINIMO:
-            continue
 
-        vendas = int(produto.get("sold_quantity") or 0)
-        ofertas.append({
-            "id": f"mercadolivre_{produto['id']}",
-            "titulo": titulo,
-            "preco": round(float(preco), 2),
-            "preco_original": round(float(preco_original), 2) if tem_desconto else None,
-            "link": link_afiliado_mercadolivre(link),
-            "categoria": categoria,
-            "loja": "mercadolivre",
-            "imagem": imagem_grande(produto.get("thumbnail")),
-            "vendas": vendas,
-            # Mesma conta usada na Shopee (comissão estimada × popularidade), com um
-            # bônus pelo tamanho do desconto, que ajuda a converter a venda
-            "pontuacao": round(
-                float(preco) * ML_COMISSAO_ESTIMADA * math.log10(vendas + 10) * (1 + desconto / 100), 4
-            ),
+def _detalhes_de_produto(codigo):
+    """Produto de catálogo: preço vem do vendedor que está ganhando a compra (buy box)."""
+    dados = _consultar(f"/products/{codigo}")
+    vencedor = dados.get("buy_box_winner") or {}
+    if not vencedor.get("price"):
+        return None  # Sem vendedor ativo no momento
+    fotos = dados.get("pictures") or []
+    return {
+        "codigo": codigo,
+        "titulo": dados.get("name"),
+        "preco": vencedor.get("price"),
+        "preco_original": vencedor.get("original_price"),
+        "link": dados.get("permalink") or f"https://www.mercadolivre.com.br/p/{codigo}",
+        "imagem": imagem_grande(fotos[0].get("url") if fotos else ""),
+        "vendas": int(vencedor.get("sold_quantity") or 0),
+    }
+
+
+def _detalhes_de_anuncios(codigos):
+    """Anúncios comuns, lidos de 20 em 20 numa só consulta."""
+    detalhes = []
+    for inicio in range(0, len(codigos), 20):
+        grupo = codigos[inicio:inicio + 20]
+        respostas = _consultar("/items", {
+            "ids": ",".join(grupo),
+            "attributes": "id,title,price,original_price,permalink,thumbnail,secure_thumbnail,sold_quantity,status",
         })
+        for resposta in respostas:
+            dados = resposta.get("body") or {}
+            if resposta.get("code") != 200 or dados.get("status", "active") != "active" or not dados.get("price"):
+                continue
+            detalhes.append({
+                "codigo": dados["id"],
+                "titulo": dados.get("title"),
+                "preco": dados.get("price"),
+                "preco_original": dados.get("original_price"),
+                "link": dados.get("permalink"),
+                "imagem": imagem_grande(dados.get("secure_thumbnail") or dados.get("thumbnail")),
+                "vendas": int(dados.get("sold_quantity") or 0),
+            })
+    return detalhes
 
+
+def detalhes_dos_produtos(lista):
+    """Recebe [(código, tipo, posição)] e devolve os detalhes, usando o cache de 30 min."""
+    agora = time.time()
+    resultado, faltando_anuncios = [], []
+    for codigo, tipo, posicao in lista:
+        guardado = _cache_detalhes.get(codigo)
+        if guardado and agora - guardado[0] < CACHE_DETALHES_SEGUNDOS:
+            if guardado[1]:
+                resultado.append({**guardado[1], "posicao": posicao})
+            continue
+        if tipo == "PRODUCT":
+            try:
+                detalhe = _detalhes_de_produto(codigo)
+            except ErroApi as e:
+                registrar_erro_de_busca(f"não foi possível ler o produto {codigo} ({e})")
+                continue
+            _cache_detalhes[codigo] = (agora, detalhe)
+            if detalhe:
+                resultado.append({**detalhe, "posicao": posicao})
+        else:
+            faltando_anuncios.append((codigo, posicao))
+
+    if faltando_anuncios:
+        posicoes = dict(faltando_anuncios)
+        try:
+            anuncios = _detalhes_de_anuncios([codigo for codigo, _ in faltando_anuncios])
+        except ErroApi as e:
+            registrar_erro_de_busca(f"não foi possível ler os anúncios ({e})")
+            anuncios = []
+        for detalhe in anuncios:
+            _cache_detalhes[detalhe["codigo"]] = (agora, detalhe)
+            resultado.append({**detalhe, "posicao": posicoes.get(detalhe["codigo"])})
+    return resultado
+
+
+def montar_oferta(detalhe, categoria):
+    preco = float(detalhe["preco"])
+    preco_original = float(detalhe.get("preco_original") or 0)
+    tem_desconto = preco_original > preco
+    desconto = (preco_original - preco) / preco_original * 100 if tem_desconto else 0
+    # Popularidade: vendas informadas ou, na falta delas, a posição nos mais vendidos
+    posicao = detalhe.get("posicao")
+    popularidade = detalhe.get("vendas") or (1000 / posicao if posicao else 0)
+    return {
+        "id": f"mercadolivre_{detalhe['codigo']}",
+        "titulo": (detalhe.get("titulo") or "").strip(),
+        "preco": round(preco, 2),
+        "preco_original": round(preco_original, 2) if tem_desconto else None,
+        "link": link_afiliado_mercadolivre(detalhe["link"]),
+        "categoria": categoria,
+        "loja": "mercadolivre",
+        "imagem": detalhe.get("imagem") or "",
+        "vendas": int(detalhe.get("vendas") or 0),
+        "desconto": desconto,
+        # Mesma conta da Shopee (comissão estimada × popularidade), com bônus pelo desconto
+        "pontuacao": round(preco * ML_COMISSAO_ESTIMADA * math.log10(popularidade + 10) * (1 + desconto / 100), 4),
+    }
+
+
+def buscar_ofertas_da_categoria(categoria_site, palavras_chave, limite, pagina=1):
+    """Varredura: mais vendidos das categorias do Mercado Livre ligadas a uma categoria do site.
+
+    A cada varredura lê uma "fatia" diferente da lista de mais vendidos, para trazer
+    produtos novos. Produtos com desconto ganham prioridade na pontuação.
+    """
+    categorias_ml = list(CATEGORIAS_ML_PRINCIPAIS.get(categoria_site, []))
+    for palavra in palavras_chave:
+        categoria = categoria_da_palavra(palavra)
+        if categoria and categoria not in categorias_ml:
+            categorias_ml.append(categoria)
+
+    por_categoria = max(4, limite // max(1, len(categorias_ml)) + 2)
+    escolhidos = []
+    for categoria_ml in categorias_ml:
+        try:
+            lista = mais_vendidos(categoria_ml)
+        except ErroApi as e:
+            registrar_erro_de_busca(f"mais vendidos da categoria {categoria_ml} indisponíveis ({e})")
+            continue
+        if not lista:
+            continue
+        inicio = ((pagina - 1) * por_categoria) % len(lista)
+        escolhidos.extend((lista + lista)[inicio:inicio + min(por_categoria, len(lista))])
+
+    ofertas = []
+    vistos = set()
+    for detalhe in detalhes_dos_produtos(escolhidos):
+        if detalhe["codigo"] in vistos or not detalhe.get("titulo") or not detalhe.get("link"):
+            continue
+        vistos.add(detalhe["codigo"])
+        oferta = montar_oferta(detalhe, categoria_site)
+        if oferta["desconto"] >= ML_DESCONTO_MINIMO:
+            ofertas.append(oferta)
+
+    ofertas.sort(key=lambda o: o["pontuacao"], reverse=True)
+    return ofertas[:limite], len(categorias_ml)
+
+
+def _busca_aberta(termo, limite):
+    """Busca normal, que o Mercado Livre costuma bloquear. Fica desligada por 6 h após um 403."""
+    global _busca_aberta_bloqueada_ate
+    if time.time() < _busca_aberta_bloqueada_ate:
+        return None
+    try:
+        dados = _consultar("/sites/MLB/search", {"q": termo, "limit": limite})
+    except ErroApi as e:
+        if e.codigo == 403:
+            _busca_aberta_bloqueada_ate = time.time() + 6 * 3600
+        return None
+    return [
+        {
+            "codigo": p["id"], "titulo": p.get("title"), "preco": p.get("price"),
+            "preco_original": p.get("original_price"), "link": p.get("permalink"),
+            "imagem": imagem_grande(p.get("thumbnail")), "vendas": int(p.get("sold_quantity") or 0),
+        }
+        for p in dados.get("results", []) if p.get("id") and p.get("price")
+    ]
+
+
+def buscar_produtos_mercadolivre(palavra_chave, categoria, limite, pagina=1, so_promocoes=False):
+    """Busca do cliente: produtos que ele procura, na ordem de relevância, com link de afiliado.
+
+    Tenta a busca normal; se estiver bloqueada, usa a busca do catálogo e, por último,
+    os mais vendidos da categoria do termo procurado.
+    """
+    detalhes = _busca_aberta(palavra_chave, limite)
+
+    if not detalhes:
+        try:
+            dados = _consultar("/products/search", {"site_id": "MLB", "q": palavra_chave, "status": "active", "limit": limite})
+            codigos = [(p["id"], "PRODUCT", None) for p in dados.get("results", []) if p.get("id")]
+            detalhes = detalhes_dos_produtos(codigos[:limite])
+        except ErroApi as e:
+            print(f"Mercado Livre: busca no catálogo indisponível para '{palavra_chave}' ({e})")
+            detalhes = []
+
+    if not detalhes:
+        categoria_ml = categoria_da_palavra(palavra_chave)
+        if categoria_ml:
+            try:
+                detalhes = detalhes_dos_produtos(mais_vendidos(categoria_ml)[:limite])
+            except ErroApi as e:
+                print(f"Mercado Livre: mais vendidos indisponíveis para '{palavra_chave}' ({e})")
+
+    ofertas = [
+        montar_oferta(d, categoria) for d in detalhes or []
+        if d.get("titulo") and d.get("link") and d.get("preco")
+    ]
     if so_promocoes:
+        ofertas = [o for o in ofertas if o["desconto"] >= ML_DESCONTO_MINIMO]
         ofertas.sort(key=lambda o: o["pontuacao"], reverse=True)
     return ofertas[:limite]
