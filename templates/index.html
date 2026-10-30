@@ -334,7 +334,8 @@
             width: 100%;
             aspect-ratio: 4 / 3;
             max-height: 190px;
-            object-fit: cover;
+            object-fit: contain;
+            background: #FFFFFF;
             border-radius: 7px;
             margin-bottom: 6px;
         }
@@ -517,9 +518,19 @@
             position: relative;
             display: block;
             aspect-ratio: 1;
-            background: #EEF0F4;
+            overflow: hidden;
+            background: #FFFFFF;
+            border-bottom: 1px solid var(--linha);
         }
-        .oferta .foto img { width: 100%; height: 100%; object-fit: cover; }
+        /* Fotos de qualquer formato ficam num quadrado, sem esticar o card nem cortar o produto */
+        .oferta .foto img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            padding: 6px;
+        }
 
         .selo-loja {
             position: absolute;

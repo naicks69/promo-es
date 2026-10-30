@@ -27,6 +27,12 @@ As variáveis de ambiente estão explicadas em `.env.example`.
 
 ### Como as ofertas são escolhidas para render mais comissão
 
+- **Divisão entre as lojas:** a Shopee fica com os itens mais básicos (até
+  `SHOPEE_PRECO_MAXIMO`, padrão R$ 100) e o Mercado Livre com produtos de mais
+  qualidade e mais vendidos (a partir de `ML_PRECO_MINIMO`, padrão R$ 100), com uma
+  lista própria de palavras-chave (`BUSCAS_MERCADOLIVRE` em `scraper.py`). Na busca do
+  cliente não há limite de preço.
+
 - **Shopee:** cada busca analisa 20 produtos mais vendidos e fica com os 6 que mais
   devem render: preço × % de comissão × popularidade. Produtos com menos de 10
   vendas ficam de fora.

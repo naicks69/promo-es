@@ -5,6 +5,7 @@ import hashlib
 import math
 import os
 import secrets
+import threading
 import time
 from collections import Counter
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
@@ -28,6 +29,10 @@ ML_AFILIADO_FERRAMENTA = os.getenv("ML_AFILIADO_FERRAMENTA", "95146766")
 # Desconto mínimo (%) para um produto entrar no site (0 = aceita todos; os com desconto
 # continuam tendo prioridade na pontuação)
 ML_DESCONTO_MINIMO = float(os.getenv("ML_DESCONTO_MINIMO", "0"))
+
+# O Mercado Livre fica com produtos de mais qualidade: abaixo deste preço o produto
+# fica para a Shopee (que traz os itens mais básicos)
+ML_PRECO_MINIMO = float(os.getenv("ML_PRECO_MINIMO", "100"))
 
 # O Mercado Livre não informa a comissão de cada produto. Esta taxa estimada só serve
 # para comparar as ofertas dele com as da Shopee na hora de escolher o que vai no WhatsApp.
@@ -84,15 +89,30 @@ def registrar_erro_de_busca(mensagem):
     erros_da_varredura.append(mensagem)
 
 
+# Descartes esperados: a API não libera esses itens para aplicativos de afiliado
+DESCARTES_NORMAIS = ("tipo ", "anúncio recusado", "produto sem vendedor", "produto sem preço", "anúncio inativo")
+
+
 def resumir_varredura(total_categorias, total_ofertas):
     resumo = (
         f"última varredura (mais vendidos): {total_categorias} categorias do Mercado Livre, "
         f"{total_ofertas} produtos com link de afiliado."
     )
-    if etapas:
-        resumo += " Etapas: " + ", ".join(f"{nome}: {total}" for nome, total in sorted(etapas.items())) + "."
-    if exemplos_de_descarte:
-        resumo += " Exemplos: " + " | ".join(f"{nome} → {exemplo}" for nome, exemplo in exemplos_de_descarte.items())
+    lidos = sum(total for nome, total in etapas.items() if nome.endswith(" lido") or nome.startswith("produto com preço"))
+    ignorados = {nome: total for nome, total in etapas.items() if nome.startswith(DESCARTES_NORMAIS)}
+    filtrados = {nome: total for nome, total in etapas.items() if nome.startswith(("abaixo", "fora da faixa"))}
+    if lidos:
+        resumo += f" Produtos lidos: {lidos}."
+    if filtrados:
+        resumo += " Filtrados: " + ", ".join(f"{nome}: {total}" for nome, total in filtrados.items()) + "."
+    if ignorados:
+        resumo += (
+            f" Ignorados ({sum(ignorados.values())}, normal: a API não libera esses itens): "
+            + ", ".join(f"{nome}: {total}" for nome, total in ignorados.items()) + "."
+        )
+    outros = [nome for nome in exemplos_de_descarte if not nome.startswith(DESCARTES_NORMAIS)]
+    if outros:
+        resumo += " Exemplos: " + " | ".join(f"{nome} → {exemplos_de_descarte[nome]}" for nome in outros)
     if erros_da_varredura:
         resumo += f" {len(erros_da_varredura)} erro(s). Primeiro erro: {erros_da_varredura[0]}"
     erros_da_varredura.clear()
@@ -186,26 +206,46 @@ def concluir_autorizacao(codigo, estado, endereco_retorno):
         )
 
 
-def token_de_acesso():
-    """Devolve um token válido, renovando sozinho quando está para vencer (dura 6 horas)."""
+# Só uma renovação por vez: o refresh token vale uma única vez, e duas renovações
+# simultâneas (varredura + busca de um cliente) faziam a segunda apagar a chave nova
+_trava_renovacao = threading.Lock()
+
+
+def _token_valido():
     token = ler_configuracao("ml_access_token")
     expira_em = int(ler_configuracao("ml_expira_em", "0") or 0)
-    if token and expira_em - time.time() > 300:
+    return token if token and expira_em - time.time() > 300 else None
+
+
+def token_de_acesso():
+    """Devolve um token válido, renovando sozinho quando está para vencer (dura 6 horas)."""
+    token = _token_valido()
+    if token:
         return token
 
-    refresh = ler_configuracao("ml_refresh_token")
-    if not refresh:
-        # Sem renovação da conta: usa o acesso do próprio aplicativo
-        return token_do_aplicativo()
-    try:
-        dados = _pedir_token({"grant_type": "refresh_token", "refresh_token": refresh})
-    except Exception as e:
-        registrar_diagnostico(f"não foi possível renovar o acesso da conta ({e}). Tentando o acesso do aplicativo.")
-        if "invalid_grant" in str(e):
-            gravar_configuracao("ml_refresh_token", "")
-        return token_do_aplicativo()
-    _salvar_tokens(dados)
-    return dados["access_token"]
+    with _trava_renovacao:
+        # Outra chamada pode ter renovado enquanto esta esperava
+        token = _token_valido()
+        if token:
+            return token
+
+        refresh = ler_configuracao("ml_refresh_token")
+        if not refresh:
+            # Sem renovação da conta: usa o acesso do próprio aplicativo
+            return token_do_aplicativo()
+        try:
+            dados = _pedir_token({"grant_type": "refresh_token", "refresh_token": refresh})
+        except Exception as e:
+            # Só desconecta se a chave recusada ainda for a guardada (não apaga uma chave nova)
+            if "invalid_grant" in str(e) and ler_configuracao("ml_refresh_token") == refresh:
+                gravar_configuracao("ml_refresh_token", "")
+                registrar_diagnostico(
+                    f"o Mercado Livre recusou a renovação da conta ({e}). Reconecte em /mercadolivre; "
+                    "enquanto isso o site usa o acesso do aplicativo."
+                )
+            return _token_valido() or token_do_aplicativo()
+        _salvar_tokens(dados)
+        return dados["access_token"]
 
 
 def token_do_aplicativo():
@@ -453,7 +493,9 @@ def buscar_ofertas_da_categoria(categoria_site, palavras_chave, limite, pagina=1
         if categoria and categoria not in categorias_ml:
             categorias_ml.append(categoria)
 
-    por_categoria = max(4, limite // max(1, len(categorias_ml)) + 2)
+    # Olha 3x mais produtos do que precisa: parte dos mais vendidos a API não libera
+    # (tipo novo e anúncios bloqueados) e parte fica abaixo do preço mínimo
+    por_categoria = max(6, 3 * (limite // max(1, len(categorias_ml)) + 1))
     escolhidos = []
     for categoria_ml in categorias_ml:
         try:
@@ -476,10 +518,12 @@ def buscar_ofertas_da_categoria(categoria_site, palavras_chave, limite, pagina=1
             continue
         vistos.add(detalhe["codigo"])
         oferta = montar_oferta(detalhe, categoria_site)
-        if oferta["desconto"] >= ML_DESCONTO_MINIMO:
-            ofertas.append(oferta)
-        else:
+        if oferta["preco"] < ML_PRECO_MINIMO:
+            contar(f"abaixo de R$ {ML_PRECO_MINIMO:g} (fica para a Shopee)")
+        elif oferta["desconto"] < ML_DESCONTO_MINIMO:
             contar("abaixo do desconto mínimo")
+        else:
+            ofertas.append(oferta)
 
     ofertas.sort(key=lambda o: o["pontuacao"], reverse=True)
     return ofertas[:limite], len(categorias_ml)
