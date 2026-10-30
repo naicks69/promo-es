@@ -22,11 +22,14 @@ from database import (
     salvar_grupo,
     remover_grupo,
     link_convite_grupo,
+    contar_ofertas_por_loja,
+    contar_grupos,
     agora_utc,
     data_iso,
 )
 from collections import deque
 from scraper import buscar_ofertas_afiliados, pesquisar_nas_lojas, link_busca_amazon, CATEGORIAS, LOJAS
+import aliexpress
 import mercadolivre
 from whatsapp import interpretar_mensagem, texto_oferta
 
@@ -372,6 +375,49 @@ def status_mercadolivre():
     if not senha_admin_correta():
         return pagina_mercadolivre(status=403)
     return pagina_mercadolivre()
+
+
+@app.route("/admin", methods=["GET", "POST"])
+def painel_admin():
+    """Situação de todas as lojas, do banco e do WhatsApp numa tela só."""
+    if request.method == "POST":
+        if entrar_como_admin(request.form.get("senha")):
+            return redirect("/admin")
+        return render_template("admin.html", senha_configurada=bool(TOKEN_BOT), senha_correta=False,
+                               mensagem="Senha incorreta."), 403
+    if not senha_admin_correta():
+        return render_template("admin.html", senha_configurada=bool(TOKEN_BOT), senha_correta=False), 403
+
+    from database import USA_POSTGRES
+    ofertas = contar_ofertas_por_loja(HORAS_VALIDADE_OFERTA)
+    faltando_aliexpress = [
+        nome for nome, valor in (
+            ("ALIEXPRESS_APP_KEY", aliexpress.ALIEXPRESS_APP_KEY),
+            ("ALIEXPRESS_APP_SECRET", aliexpress.ALIEXPRESS_APP_SECRET),
+            ("ALIEXPRESS_TRACKING_ID", aliexpress.ALIEXPRESS_TRACKING_ID),
+        ) if not valor
+    ]
+    from scraper import credenciais_configuradas as shopee_configurada
+    return render_template(
+        "admin.html",
+        senha_configurada=True,
+        senha_correta=True,
+        usa_postgres=USA_POSTGRES,
+        ofertas=ofertas,
+        lojas=LOJAS,
+        ultima_varredura=data_iso(ultima_varredura),
+        shopee_configurada=shopee_configurada(),
+        ml_configurado=mercadolivre.configurado(),
+        ml_conectado=mercadolivre.conectado(),
+        ml_renovacao=mercadolivre.tem_renovacao(),
+        ml_acesso_aplicativo=mercadolivre.acesso_do_aplicativo_ativo(),
+        ml_diagnostico=mercadolivre.ultimo_diagnostico(),
+        aliexpress_configurado=aliexpress.configurado(),
+        faltando_aliexpress=faltando_aliexpress,
+        aliexpress_diagnostico=aliexpress.ultimo_diagnostico(),
+        grupos=contar_grupos(),
+        link_grupo=link_do_grupo(),
+    )
 
 
 @app.route("/mercadolivre/conectar")

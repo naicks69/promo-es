@@ -34,7 +34,7 @@ def texto_menu(intervalo_minutos, link_grupo=""):
     grupo = f"\n\n📣 Ou entre no nosso grupo de promoções:\n{link_grupo}" if link_grupo else ""
     return (
         "👋 Olá! Eu sou o bot do *Radar de Ofertas*.\n\n"
-        f"Envio promoções da Amazon, Shopee e Mercado Livre a cada {intervalo_minutos} minutos.\n\n"
+        f"Envio promoções da Amazon, Shopee, Mercado Livre e AliExpress a cada {intervalo_minutos} minutos.\n\n"
         "Para receber aqui no privado, responda com as categorias que você quer, por exemplo:\n"
         "*Quero receber Casa e Gamer*\n\n"
         f"Categorias:\n{opcoes}\n• Tudo\n\n"
@@ -81,7 +81,7 @@ def texto_oferta(oferta):
     """Legenda de uma oferta, enviada junto com a foto do produto."""
     chave = oferta.get("loja") or ""
     loja = LOJAS.get(chave, chave)
-    preposicao = "no" if chave == "mercadolivre" else "na"
+    preposicao = "no" if chave in ("mercadolivre", "aliexpress") else "na"
     preco_original = oferta.get("preco_original")
     de_por = ""
     if preco_original and preco_original > oferta["preco"]:

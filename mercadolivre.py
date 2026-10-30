@@ -175,16 +175,45 @@ def token_de_acesso():
 
     refresh = ler_configuracao("ml_refresh_token")
     if not refresh:
-        return None
+        # Sem renovação da conta: usa o acesso do próprio aplicativo
+        return token_do_aplicativo()
     try:
         dados = _pedir_token({"grant_type": "refresh_token", "refresh_token": refresh})
     except Exception as e:
-        registrar_diagnostico(f"não foi possível renovar o acesso ({e}). Conecte a conta de novo.")
+        registrar_diagnostico(f"não foi possível renovar o acesso da conta ({e}). Tentando o acesso do aplicativo.")
         if "invalid_grant" in str(e):
             gravar_configuracao("ml_refresh_token", "")
-        return None
+        return token_do_aplicativo()
     _salvar_tokens(dados)
     return dados["access_token"]
+
+
+def token_do_aplicativo():
+    """Acesso em nome do próprio aplicativo (client credentials), sem depender da conta.
+
+    Serve de alternativa quando o Mercado Livre não envia o refresh token da conta.
+    Também dura 6 horas, mas o site pede outro sozinho quando vence.
+    """
+    token = ler_configuracao("ml_app_token")
+    expira_em = int(ler_configuracao("ml_app_expira_em", "0") or 0)
+    if token and expira_em - time.time() > 300:
+        return token
+    try:
+        dados = _pedir_token({"grant_type": "client_credentials"})
+    except Exception as e:
+        registrar_diagnostico(
+            f"o Mercado Livre recusou o acesso do aplicativo ({e}). "
+            "Ative o fluxo Refresh Token (ou Client Credentials) no aplicativo e reconecte a conta."
+        )
+        return None
+    gravar_configuracao("ml_app_token", dados["access_token"])
+    gravar_configuracao("ml_app_expira_em", str(int(time.time()) + int(dados.get("expires_in", 21600))))
+    return dados["access_token"]
+
+
+def acesso_do_aplicativo_ativo():
+    expira_em = int(ler_configuracao("ml_app_expira_em", "0") or 0)
+    return bool(ler_configuracao("ml_app_token")) and expira_em > time.time()
 
 
 # ==========================================
