@@ -4,7 +4,9 @@ import threading
 import time
 from datetime import datetime, timedelta, timezone
 import requests
-from flask import Flask, jsonify, redirect, render_template, request
+import hashlib
+import hmac
+from flask import Flask, jsonify, redirect, render_template, request, session
 from database import (
     inicializar_banco,
     salvar_oferta_db,
@@ -42,6 +44,15 @@ LINK_GRUPO_WHATSAPP = os.getenv("WHATSAPP_LINK", "")
 # Senha combinada entre o site e o bot (o bot envia no cabeçalho X-Bot-Token).
 # Enquanto não estiver configurada, as rotas do bot ficam bloqueadas.
 TOKEN_BOT = os.getenv("WHATSAPP_BOT_TOKEN", "")
+
+# Chave que assina o cookie de login da página /mercadolivre (derivada da senha do bot)
+app.secret_key = hashlib.sha256(f"radar-de-ofertas-sessao:{TOKEN_BOT}".encode()).hexdigest()
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=os.getenv("RENDER_EXTERNAL_URL", "").startswith("https://"),
+    PERMANENT_SESSION_LIFETIME=timedelta(days=30),
+)
 
 # Busca ofertas novas a cada 5 minutos e mantém cada uma no site por até 4 horas
 INTERVALO_VARREDURA = int(os.getenv("INTERVALO_VARREDURA", "300"))
@@ -305,11 +316,22 @@ def salvar_interesse():
 # ==========================================
 # 3. CONEXÃO COM O MERCADO LIVRE
 # ==========================================
-# Página de administração protegida pela mesma senha do bot (WHATSAPP_BOT_TOKEN):
-# /mercadolivre?senha=SUA_SENHA
+# Página de administração protegida pela mesma senha do bot (WHATSAPP_BOT_TOKEN).
+# A senha é digitada uma vez num formulário e fica guardada num cookie assinado,
+# para não aparecer no endereço da página nem no histórico do navegador.
 
 def senha_admin_correta():
-    return bool(TOKEN_BOT) and request.args.get("senha") == TOKEN_BOT
+    if not TOKEN_BOT:
+        return False
+    return session.get("admin") == hashlib.sha256(TOKEN_BOT.encode()).hexdigest()
+
+
+def entrar_como_admin(senha):
+    if TOKEN_BOT and hmac.compare_digest(senha or "", TOKEN_BOT):
+        session.permanent = True
+        session["admin"] = hashlib.sha256(TOKEN_BOT.encode()).hexdigest()
+        return True
+    return False
 
 
 def endereco_retorno_mercadolivre():
@@ -325,8 +347,10 @@ def pagina_mercadolivre(mensagem="", erro=False, status=200):
         "mercadolivre.html",
         configurado=mercadolivre.configurado(),
         conectado=mercadolivre.conectado(),
+        tem_renovacao=mercadolivre.tem_renovacao(),
+        horas_restantes=mercadolivre.horas_de_acesso_restantes(),
+        diagnostico=mercadolivre.ultimo_diagnostico(),
         endereco_retorno=endereco_retorno_mercadolivre(),
-        senha=request.args.get("senha", ""),
         usuario_afiliado=mercadolivre.ML_AFILIADO_USUARIO,
         ferramenta_afiliado=mercadolivre.ML_AFILIADO_FERRAMENTA,
         exemplo_link=exemplo,
@@ -337,8 +361,14 @@ def pagina_mercadolivre(mensagem="", erro=False, status=200):
     ), status
 
 
-@app.route("/mercadolivre")
+@app.route("/mercadolivre", methods=["GET", "POST"])
 def status_mercadolivre():
+    senha = request.form.get("senha") if request.method == "POST" else request.args.get("senha")
+    if senha is not None:
+        if entrar_como_admin(senha):
+            # Recarrega sem a senha no endereço
+            return redirect("/mercadolivre")
+        return pagina_mercadolivre("Senha incorreta.", erro=True, status=403)
     if not senha_admin_correta():
         return pagina_mercadolivre(status=403)
     return pagina_mercadolivre()
@@ -368,6 +398,12 @@ def retorno_mercadolivre():
         )
     except Exception as e:
         return pagina_mercadolivre(f"Não foi possível concluir a conexão: {e}", erro=True)
+    if not mercadolivre.tem_renovacao():
+        return pagina_mercadolivre(
+            "⚠️ Conectado, mas o Mercado Livre não liberou a renovação automática: o acesso vale só 6 horas. "
+            "Ative a permissão offline_access no aplicativo e conecte de novo.",
+            erro=True,
+        )
     return pagina_mercadolivre(
         "✅ Conta do Mercado Livre conectada! As promoções começam a aparecer na próxima busca (até 5 minutos)."
     )

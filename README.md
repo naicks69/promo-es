@@ -51,7 +51,13 @@ guardados por 15 min, até 8 buscas por minuto por visitante).
 3. Nas permissões, marque leitura e **offline_access** (para a conexão não expirar).
 4. Copie o **Client ID** e o **Client Secret** e cadastre no Render como
    `ML_CLIENT_ID` e `ML_CLIENT_SECRET`.
-5. Abra `/mercadolivre?senha=SUA_SENHA` e clique em **Conectar Mercado Livre**.
+5. Abra `/mercadolivre`, digite a senha (a mesma de `WHATSAPP_BOT_TOKEN`; o navegador
+   lembra por 30 dias) e clique em **Conectar Mercado Livre**.
+
+A página `/mercadolivre` mostra se a renovação automática está ativa e o resumo da
+última varredura (quantas promoções vieram e o primeiro erro, se houver). Se ela
+avisar que falta **offline_access**, ative essa permissão no aplicativo e reconecte:
+sem ela o acesso dura só 6 horas.
 
 Se o Mercado Livre mostrar "não foi possível conectar o aplicativo à sua conta":
 confira se a URI de redirect do aplicativo é idêntica à mostrada na página, se você
