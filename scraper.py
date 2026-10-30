@@ -265,6 +265,7 @@ def buscar_ofertas_mercadolivre(pagina):
                 ids_vistos.add(oferta["id"])
                 todas_as_ofertas.append(oferta)
         time.sleep(1)
+    mercadolivre.resumir_varredura(len(BUSCAS), len(todas_as_ofertas))
     return todas_as_ofertas
 
 

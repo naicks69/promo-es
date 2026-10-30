@@ -39,8 +39,46 @@ def configurado():
     return bool(ML_CLIENT_ID and ML_CLIENT_SECRET)
 
 
-def conectado():
+def tem_renovacao():
+    """True quando o site consegue renovar o acesso sozinho (permissão offline_access)."""
     return bool(ler_configuracao("ml_refresh_token"))
+
+
+def horas_de_acesso_restantes():
+    expira_em = int(ler_configuracao("ml_expira_em", "0") or 0)
+    return max(0.0, (expira_em - time.time()) / 3600)
+
+
+def conectado():
+    return tem_renovacao() or (bool(ler_configuracao("ml_access_token")) and horas_de_acesso_restantes() > 0)
+
+
+def registrar_diagnostico(mensagem):
+    """Guarda o resultado da última tentativa, exibido na página /mercadolivre."""
+    quando = time.strftime("%d/%m %H:%M", time.gmtime(time.time() - 3 * 3600))
+    print(f"Mercado Livre: {mensagem}")
+    gravar_configuracao("ml_diagnostico", f"{quando} (horário de Brasília): {mensagem}")
+
+
+def ultimo_diagnostico():
+    return ler_configuracao("ml_diagnostico", "")
+
+
+# Erros da varredura em andamento (resumidos no fim por resumir_varredura)
+erros_da_varredura = []
+
+
+def registrar_erro_de_busca(mensagem):
+    print(f"Mercado Livre: {mensagem}")
+    erros_da_varredura.append(mensagem)
+
+
+def resumir_varredura(total_buscas, total_promocoes):
+    resumo = f"última varredura: {total_buscas} buscas, {total_promocoes} promoções com link de afiliado."
+    if erros_da_varredura:
+        resumo += f" {len(erros_da_varredura)} busca(s) com erro. Primeiro erro: {erros_da_varredura[0]}"
+    erros_da_varredura.clear()
+    registrar_diagnostico(resumo)
 
 
 def link_afiliado_mercadolivre(link):
@@ -119,8 +157,13 @@ def concluir_autorizacao(codigo, estado, endereco_retorno):
     dados = _pedir_token(campos)
     _salvar_tokens(dados)
     gravar_configuracao("ml_oauth_estado", "")
-    if not dados.get("refresh_token"):
-        print("⚠️ O Mercado Livre não enviou refresh token: ative a permissão offline_access no aplicativo.")
+    if dados.get("refresh_token"):
+        registrar_diagnostico("conta conectada, com renovação automática.")
+    else:
+        registrar_diagnostico(
+            "conta conectada SEM renovação automática: o aplicativo está sem a permissão offline_access. "
+            "O acesso vale só 6 horas."
+        )
 
 
 def token_de_acesso():
@@ -136,7 +179,7 @@ def token_de_acesso():
     try:
         dados = _pedir_token({"grant_type": "refresh_token", "refresh_token": refresh})
     except Exception as e:
-        print(f"❌ Não foi possível renovar o acesso ao Mercado Livre ({e}). Conecte a conta de novo em /mercadolivre.")
+        registrar_diagnostico(f"não foi possível renovar o acesso ({e}). Conecte a conta de novo.")
         if "invalid_grant" in str(e):
             gravar_configuracao("ml_refresh_token", "")
         return None
@@ -175,15 +218,18 @@ def buscar_produtos_mercadolivre(palavra_chave, categoria, limite, pagina=1, so_
             timeout=20,
         )
     except Exception as e:
-        print(f"❌ Erro de conexão com o Mercado Livre: {e}")
+        registrar_erro_de_busca(f"erro de conexão na busca '{palavra_chave}': {e}")
         return []
 
     if resposta.status_code != 200:
-        print(f"❌ Mercado Livre recusou a busca '{palavra_chave}' ({resposta.status_code}): {resposta.text[:300]}")
+        registrar_erro_de_busca(
+            f"a API recusou a busca '{palavra_chave}' (código {resposta.status_code}): {resposta.text[:300]}"
+        )
         return []
 
+    resultados = resposta.json().get("results", [])
     ofertas = []
-    for produto in resposta.json().get("results", []):
+    for produto in resultados:
         preco = produto.get("price")
         preco_original = produto.get("original_price")
         link = produto.get("permalink")

@@ -64,6 +64,9 @@
             text-decoration: none;
             cursor: pointer;
         }
+        .alerta { border-color: #F1C40F; background: #FFFBE6; }
+        .alerta ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+        .diagnostico { margin: 0 !important; color: var(--tinta) !important; overflow-wrap: anywhere; }
         .dica { margin: 14px 0 0 !important; font-size: 14px; }
         .dica a { color: var(--tinta); font-weight: 600; }
         .botao.ml { background: var(--ml); color: var(--ml-texto); width: 100%; height: 52px; font-size: 17px; }
@@ -95,7 +98,7 @@
         <section class="cartao">
             <h2>Digite a senha de administrador</h2>
             <p>É a mesma senha cadastrada no Render em <b>WHATSAPP_BOT_TOKEN</b>.</p>
-            <form method="get" action="/mercadolivre">
+            <form method="post" action="/mercadolivre">
                 <input type="password" name="senha" aria-label="Senha" autocomplete="current-password" required>
                 <button type="submit">Entrar</button>
             </form>
@@ -105,9 +108,30 @@
             <h2>Situação</h2>
             <ul class="status">
                 <li class="{{ 'ok' if configurado else 'falta' }}">Aplicativo cadastrado no Render (ML_CLIENT_ID e ML_CLIENT_SECRET)</li>
-                <li class="{{ 'ok' if conectado else 'falta' }}">Conta do Mercado Livre conectada</li>
+                <li class="{{ 'ok' if conectado else 'falta' }}">Conta do Mercado Livre conectada
+                    {% if conectado and not tem_renovacao %}(acesso vale mais {{ '%.1f' | format(horas_restantes) }} h){% endif %}</li>
+                {% if conectado or diagnostico %}
+                <li class="{{ 'ok' if tem_renovacao else 'falta' }}">Renovação automática do acesso (permissão offline_access)</li>
+                {% endif %}
                 <li class="ok">Afiliado: matt_word={{ usuario_afiliado }} e matt_tool={{ ferramenta_afiliado }}</li>
             </ul>
+        </section>
+
+        {% if conectado and not tem_renovacao %}
+        <section class="cartao alerta">
+            <h2>Falta a permissão offline_access</h2>
+            <p>Sem ela, o Mercado Livre libera o acesso por só 6 horas e o site para de buscar promoções.</p>
+            <ol>
+                <li>Em developers.mercadolivre.com.br, abra <b>Minhas aplicações</b>, clique no aplicativo e em <b>Editar</b>.</li>
+                <li>Em <b>Permissões</b> (ou Escopos), marque <b>offline_access</b> e salve.</li>
+                <li>Volte aqui e clique em <b>Reconectar a conta</b>.</li>
+            </ol>
+        </section>
+        {% endif %}
+
+        <section class="cartao">
+            <h2>Última atividade do Mercado Livre</h2>
+            <p class="diagnostico">{{ diagnostico or 'Nenhuma busca feita ainda. Depois de conectar, espere até 5 minutos ou abra /forcar-atualizacao.' }}</p>
         </section>
 
         <section class="cartao">
@@ -123,9 +147,9 @@
             <h2>{{ 'Reconectar a conta' if conectado else 'Conectar a conta' }}</h2>
             {% if configurado %}
             <p>Você vai para o Mercado Livre, entra com a sua conta e clica em <b>Permitir</b>. Depois volta para cá sozinho.</p>
-            <a class="botao ml" href="/mercadolivre/conectar?senha={{ senha | urlencode }}">Conectar Mercado Livre</a>
+            <a class="botao ml" href="/mercadolivre/conectar">{{ 'Reconectar' if conectado else 'Conectar' }} Mercado Livre</a>
             <p class="dica">Apareceu "não foi possível conectar o aplicativo à sua conta"? Confira se o endereço de retorno acima está idêntico no aplicativo e tente de novo. Se o PKCE estiver desligado no aplicativo, use:
-                <a href="/mercadolivre/conectar?senha={{ senha | urlencode }}&amp;pkce=0">Conectar sem PKCE</a></p>
+                <a href="/mercadolivre/conectar?pkce=0">Conectar sem PKCE</a></p>
             {% else %}
             <p>Primeiro cadastre ML_CLIENT_ID e ML_CLIENT_SECRET no Render e espere o site reiniciar.</p>
             {% endif %}
