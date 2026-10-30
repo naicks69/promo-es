@@ -525,6 +525,21 @@
             color: var(--tinta-suave);
         }
 
+        .preco-antigo {
+            margin: 0;
+            font-size: 13px;
+            color: var(--tinta-suave);
+        }
+        .preco-antigo .desconto {
+            display: inline-block;
+            margin-left: 4px;
+            padding: 0 6px;
+            border-radius: 6px;
+            background: #E7F7EE;
+            color: #0B6B3A;
+            font-weight: 800;
+        }
+
         /* Etiqueta de preço no estilo encarte */
         .etiqueta {
             align-self: flex-start;
@@ -1089,6 +1104,7 @@
                         <div class="info">
                             <a class="titulo" href="${link}" target="_blank" rel="noopener sponsored">${titulo}</a>
                             ${detalhes ? `<p class="detalhes">${detalhes}</p>` : ''}
+                            ${precoAntigo(produto.preco, produto.preco_original)}
                             ${etiquetaPreco(produto.preco)}
                             <div class="acoes">
                                 <a class="comprar" href="${link}" target="_blank" rel="noopener sponsored"><span class="so-tela-grande">Ver ${escaparHtml(naLoja(produto.loja))}</span><span class="so-celular">Ver oferta</span></a>
@@ -1120,9 +1136,20 @@
             secao.querySelector('#previa-oferta').innerHTML = `
                 ${oferta.imagem ? `<img src="${escaparHtml(oferta.imagem)}" alt="">` : ''}
                 <p>🔥 <b>${escaparHtml(oferta.titulo)}</b></p>
+                ${oferta.preco_original > oferta.preco ? `<p>De <s>${Number(oferta.preco_original).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</s></p>` : ''}
                 <p>💰 <b>${preco}</b> ${loja}</p>
                 <p>🛒 Compre aqui: <span class="link-falso">${escaparHtml(oferta.link)}</span></p>
                 <time>${hora}</time>`;
+        }
+
+        // "de R$ 199,90 −30%" quando a loja informa o preço anterior
+        function precoAntigo(preco, original) {
+            const atual = Number(preco);
+            const antes = Number(original);
+            if (!original || isNaN(antes) || isNaN(atual) || antes <= atual) return '';
+            const desconto = Math.round((1 - atual / antes) * 100);
+            const antesTexto = antes.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            return `<p class="preco-antigo">de <s>${antesTexto}</s> <span class="desconto">−${desconto}%</span></p>`;
         }
 
         function etiquetaPreco(preco) {

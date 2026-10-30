@@ -94,9 +94,13 @@ def inicializar_banco():
             data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    # Quantidade de vendidos na Shopee, exibida no site (coluna nova em bancos já existentes)
-    if "vendas" not in colunas_da_tabela("ofertas"):
-        executar("ALTER TABLE ofertas ADD COLUMN vendas INTEGER DEFAULT 0")
+    # Colunas novas, criadas automaticamente em bancos que já existiam:
+    # vendas (exibida no site), preço antigo (para mostrar o desconto) e
+    # pontuação (quanto a oferta deve render de comissão, usada para escolher o que vai no WhatsApp)
+    colunas_ofertas = colunas_da_tabela("ofertas")
+    for coluna, tipo in (("vendas", "INTEGER DEFAULT 0"), ("preco_original", "REAL"), ("pontuacao", "REAL DEFAULT 0")):
+        if coluna not in colunas_ofertas:
+            executar(f"ALTER TABLE ofertas ADD COLUMN {coluna} {tipo}")
 
     # 4. Ofertas já enviadas para cada pessoa no WhatsApp
     executar("""
@@ -115,6 +119,14 @@ def inicializar_banco():
             nome TEXT,
             link_convite TEXT,
             data_ativacao TIMESTAMP
+        )
+    """)
+
+    # 6. Configurações guardadas pelo próprio sistema (ex.: acesso ao Mercado Livre)
+    executar("""
+        CREATE TABLE IF NOT EXISTS configuracoes (
+            chave TEXT PRIMARY KEY,
+            valor TEXT
         )
     """)
 
@@ -145,15 +157,17 @@ def data_iso(valor):
 # OFERTAS
 # ==========================================
 
-def salvar_oferta_db(id_prod, titulo, preco, link, categoria, loja, imagem="", vendas=0):
+def salvar_oferta_db(id_prod, titulo, preco, link, categoria, loja, imagem="", vendas=0,
+                     preco_original=None, pontuacao=0):
     """Grava a oferta nova ou atualiza preço, link e imagem de uma que já está no site.
 
     A data de publicação só é definida na primeira vez, para que a oferta saia do
     site quando completar o prazo de validade, mesmo que continue aparecendo nas buscas.
     """
     executar("""
-        INSERT INTO ofertas (id, titulo, preco, link, categoria, loja, imagem, vendas, data_criacao)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO ofertas (id, titulo, preco, link, categoria, loja, imagem, vendas,
+                             preco_original, pontuacao, data_criacao)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (id) DO UPDATE SET
             titulo = excluded.titulo,
             preco = excluded.preco,
@@ -161,8 +175,11 @@ def salvar_oferta_db(id_prod, titulo, preco, link, categoria, loja, imagem="", v
             categoria = excluded.categoria,
             loja = excluded.loja,
             imagem = excluded.imagem,
-            vendas = excluded.vendas
-    """, (id_prod, titulo, preco, link, categoria, loja, imagem, vendas, agora_utc()))
+            vendas = excluded.vendas,
+            preco_original = excluded.preco_original,
+            pontuacao = excluded.pontuacao
+    """, (id_prod, titulo, preco, link, categoria, loja, imagem, vendas,
+          preco_original, pontuacao, agora_utc()))
 
 
 def remover_ofertas_expiradas(horas_validade):
@@ -183,12 +200,13 @@ def linha_para_oferta(l):
         "imagem": l[6],
         "vendas": l[7] or 0,
         "publicado_em": data_iso(l[8]),
+        "preco_original": l[9],
     }
 
 
 def buscar_ofertas_db(horas_validade=4, limite=120):
     linhas = executar("""
-        SELECT id, titulo, preco, link, categoria, loja, imagem, vendas, data_criacao
+        SELECT id, titulo, preco, link, categoria, loja, imagem, vendas, data_criacao, preco_original
         FROM ofertas
         WHERE link IS NOT NULL AND link != '' AND data_criacao >= ?
         ORDER BY data_criacao DESC, vendas DESC
@@ -255,7 +273,7 @@ def listar_inscritos():
 def ofertas_para_enviar(whatsapp_id, categorias, limite, horas_validade=4):
     """Ofertas ainda no site, das categorias da pessoa, que ela ainda não recebeu."""
     sql = """
-        SELECT id, titulo, preco, link, categoria, loja, imagem, vendas, data_criacao
+        SELECT id, titulo, preco, link, categoria, loja, imagem, vendas, data_criacao, preco_original
         FROM ofertas o
         WHERE o.data_criacao >= ?
           AND NOT EXISTS (
@@ -266,7 +284,8 @@ def ofertas_para_enviar(whatsapp_id, categorias, limite, horas_validade=4):
     if "todas" not in categorias:
         sql += f" AND o.categoria IN ({', '.join('?' for _ in categorias)})"
         parametros.extend(categorias)
-    sql += " ORDER BY o.data_criacao DESC, o.vendas DESC LIMIT ?"
+    # Primeiro as que mais devem render comissão
+    sql += " ORDER BY o.pontuacao DESC, o.data_criacao DESC LIMIT ?"
     parametros.append(limite)
     return [linha_para_oferta(l) for l in executar(sql, tuple(parametros), buscar="todos")]
 
@@ -313,6 +332,22 @@ def link_convite_grupo():
         LIMIT 1
     """, buscar="um")
     return linha[0] if linha else ""
+
+
+# ==========================================
+# CONFIGURAÇÕES
+# ==========================================
+
+def ler_configuracao(chave, padrao=None):
+    linha = executar("SELECT valor FROM configuracoes WHERE chave = ?", (chave,), buscar="um")
+    return linha[0] if linha else padrao
+
+
+def gravar_configuracao(chave, valor):
+    executar("""
+        INSERT INTO configuracoes (chave, valor) VALUES (?, ?)
+        ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor
+    """, (chave, valor))
 
 
 if __name__ == "__main__":

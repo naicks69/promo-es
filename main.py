@@ -4,7 +4,7 @@ import threading
 import time
 from datetime import datetime, timedelta, timezone
 import requests
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, redirect, render_template, request
 from database import (
     inicializar_banco,
     salvar_oferta_db,
@@ -24,6 +24,7 @@ from database import (
     data_iso,
 )
 from scraper import buscar_ofertas_afiliados, CATEGORIAS, LOJAS
+import mercadolivre
 from whatsapp import interpretar_mensagem, texto_oferta
 
 app = Flask(__name__)
@@ -251,7 +252,77 @@ def salvar_interesse():
 
 
 # ==========================================
-# 3. FUNÇÕES DE AUTOMAÇÃO E WHATSAPP
+# 3. CONEXÃO COM O MERCADO LIVRE
+# ==========================================
+# Página de administração protegida pela mesma senha do bot (WHATSAPP_BOT_TOKEN):
+# /mercadolivre?senha=SUA_SENHA
+
+def senha_admin_correta():
+    return bool(TOKEN_BOT) and request.args.get("senha") == TOKEN_BOT
+
+
+def endereco_retorno_mercadolivre():
+    base = URL_PUBLICA or request.host_url.rstrip("/")
+    return f"{base}/mercadolivre/retorno"
+
+
+def pagina_mercadolivre(mensagem="", erro=False, status=200):
+    exemplo = mercadolivre.link_afiliado_mercadolivre(
+        "https://www.mercadolivre.com.br/exemplo-de-produto/p/MLB00000000"
+    )
+    return render_template(
+        "mercadolivre.html",
+        configurado=mercadolivre.configurado(),
+        conectado=mercadolivre.conectado(),
+        endereco_retorno=endereco_retorno_mercadolivre(),
+        senha=request.args.get("senha", ""),
+        usuario_afiliado=mercadolivre.ML_AFILIADO_USUARIO,
+        ferramenta_afiliado=mercadolivre.ML_AFILIADO_FERRAMENTA,
+        exemplo_link=exemplo,
+        mensagem=mensagem,
+        erro=erro,
+        senha_configurada=bool(TOKEN_BOT),
+        senha_correta=senha_admin_correta(),
+    ), status
+
+
+@app.route("/mercadolivre")
+def status_mercadolivre():
+    if not senha_admin_correta():
+        return pagina_mercadolivre(status=403)
+    return pagina_mercadolivre()
+
+
+@app.route("/mercadolivre/conectar")
+def conectar_mercadolivre():
+    if not senha_admin_correta():
+        return pagina_mercadolivre(status=403)
+    if not mercadolivre.configurado():
+        return pagina_mercadolivre("Cadastre ML_CLIENT_ID e ML_CLIENT_SECRET no Render antes de conectar.", erro=True)
+    return redirect(mercadolivre.gerar_link_autorizacao(endereco_retorno_mercadolivre()))
+
+
+@app.route("/mercadolivre/retorno")
+def retorno_mercadolivre():
+    """O Mercado Livre manda a pessoa de volta para cá depois da autorização."""
+    if request.args.get("error"):
+        return pagina_mercadolivre(
+            f"O Mercado Livre não autorizou: {request.args.get('error_description') or request.args.get('error')}",
+            erro=True,
+        )
+    try:
+        mercadolivre.concluir_autorizacao(
+            request.args.get("code", ""), request.args.get("state", ""), endereco_retorno_mercadolivre()
+        )
+    except Exception as e:
+        return pagina_mercadolivre(f"Não foi possível concluir a conexão: {e}", erro=True)
+    return pagina_mercadolivre(
+        "✅ Conta do Mercado Livre conectada! As promoções começam a aparecer na próxima busca (até 5 minutos)."
+    )
+
+
+# ==========================================
+# 4. FUNÇÕES DE AUTOMAÇÃO E WHATSAPP
 # ==========================================
 
 def salvar_ofertas(ofertas):
@@ -265,7 +336,9 @@ def salvar_ofertas(ofertas):
             oferta["categoria"],
             oferta.get("loja", "shopee"),
             oferta.get("imagem", ""),
-            oferta.get("vendas", 0)
+            oferta.get("vendas", 0),
+            oferta.get("preco_original"),
+            oferta.get("pontuacao", 0),
         )
     return len(ofertas)
 
@@ -320,7 +393,7 @@ iniciar_tarefas_em_segundo_plano()
 
 
 # ==========================================
-# 4. INICIALIZAÇÃO DO SERVIDOR
+# 5. INICIALIZAÇÃO DO SERVIDOR
 # ==========================================
 
 if __name__ == "__main__":

@@ -1,9 +1,12 @@
 import hashlib
 import json
+import math
 import time
 import os
 import requests
 from dotenv import load_dotenv
+
+import mercadolivre
 
 load_dotenv()
 
@@ -13,6 +16,15 @@ SHOPEE_API_URL = "https://open-api.affiliate.shopee.com.br/graphql"
 
 # Quantos produtos trazer por palavra-chave em cada varredura
 PRODUTOS_POR_BUSCA = int(os.getenv("PRODUTOS_POR_BUSCA", "6"))
+
+# Quantos candidatos analisar por busca antes de escolher os que mais rendem comissão
+CANDIDATOS_POR_BUSCA = int(os.getenv("CANDIDATOS_POR_BUSCA", "20"))
+
+# Comissão mínima (em %) para um produto da Shopee entrar no site (0 = aceita todos)
+COMISSAO_MINIMA = float(os.getenv("COMISSAO_MINIMA", "0"))
+
+# Produtos com menos vendas que isso ficam de fora: quase sem vendas, quase não convertem
+VENDAS_MINIMAS = int(os.getenv("VENDAS_MINIMAS", "10"))
 
 # A cada varredura o bot lê a página seguinte dos resultados (1, 2, 3... e volta à 1),
 # para trazer produtos diferentes a cada ciclo em vez de repetir sempre os mesmos.
@@ -33,9 +45,9 @@ CATEGORIAS = {
     "moda": "Moda",
 }
 
-# O que o bot procura na Shopee e em qual categoria do site cada resultado entra.
+# O que o bot procura nas lojas e em qual categoria do site cada resultado entra.
 # Para acrescentar produtos novos, basta incluir uma linha aqui.
-BUSCAS_SHOPEE = [
+BUSCAS = [
     {"palavra_chave": "garrafa térmica", "categoria": "casa"},
     {"palavra_chave": "organizador cozinha", "categoria": "casa"},
     {"palavra_chave": "luminária led", "categoria": "casa"},
@@ -109,14 +121,33 @@ def gerar_link_afiliado_shopee(link_original):
     return (dados.get("generateShortLink") or {}).get("shortLink")
 
 
+def taxa_comissao(valor):
+    """A Shopee envia a comissão como fração ("0.12" = 12%); aceita também "12"."""
+    try:
+        taxa = float(valor or 0)
+    except (TypeError, ValueError):
+        return 0.0
+    return taxa / 100 if taxa > 1 else taxa
+
+
+def pontuacao_comissao(preco, taxa, vendas):
+    """Estimativa de quanto o produto rende: comissão em R$ por venda × popularidade.
+
+    Usa o logaritmo das vendas para que um produto muito vendido mas com comissão
+    baixa não ganhe de um produto bem vendido com comissão alta.
+    """
+    return preco * taxa * math.log10(vendas + 10)
+
+
 def buscar_produtos_shopee(palavra_chave, categoria, limite=PRODUTOS_POR_BUSCA, pagina=1):
     """Procura produtos reais na Shopee e já devolve o link de afiliado de cada um.
 
-    O campo offerLink da API é o link de afiliado que leva direto à página do
-    produto, com a comissão rastreada.
+    Analisa CANDIDATOS_POR_BUSCA produtos mais vendidos e fica com os `limite` que
+    mais devem render em comissão. O campo offerLink da API é o link de afiliado
+    que leva direto à página do produto, com a comissão rastreada.
     """
     query = f"""{{
-    productOfferV2(keyword: {json.dumps(palavra_chave, ensure_ascii=False)}, sortType: 2, page: {int(pagina)}, limit: {int(limite)}) {{
+    productOfferV2(keyword: {json.dumps(palavra_chave, ensure_ascii=False)}, sortType: 2, page: {int(pagina)}, limit: {int(max(limite, CANDIDATOS_POR_BUSCA))}) {{
         nodes {{
             itemId
             shopId
@@ -156,6 +187,11 @@ def buscar_produtos_shopee(palavra_chave, categoria, limite=PRODUTOS_POR_BUSCA, 
         if not item_id or not titulo or not link_afiliado or preco is None:
             continue
 
+        taxa = taxa_comissao(produto.get("commissionRate"))
+        vendas = int(produto.get("sales") or 0)
+        if taxa * 100 < COMISSAO_MINIMA or vendas < VENDAS_MINIMAS:
+            continue
+
         ofertas.append({
             "id": f"shopee_{item_id}",
             "titulo": titulo,
@@ -164,10 +200,13 @@ def buscar_produtos_shopee(palavra_chave, categoria, limite=PRODUTOS_POR_BUSCA, 
             "categoria": categoria,
             "loja": "shopee",
             "imagem": produto.get("imageUrl") or "",
-            "vendas": int(produto.get("sales") or 0),
+            "vendas": vendas,
+            "pontuacao": round(pontuacao_comissao(preco, taxa, vendas), 4),
         })
 
-    return ofertas
+    # Fica com os produtos que mais devem render comissão
+    ofertas.sort(key=lambda o: o["pontuacao"], reverse=True)
+    return ofertas[:limite]
 
 
 def buscar_ofertas_shopee(pagina):
@@ -179,7 +218,7 @@ def buscar_ofertas_shopee(pagina):
     todas_as_ofertas = []
     ids_vistos = set()
 
-    for busca in BUSCAS_SHOPEE:
+    for busca in BUSCAS:
         ofertas = buscar_produtos_shopee(busca["palavra_chave"], busca["categoria"], pagina=pagina)
         print(f"🔎 Shopee '{busca['palavra_chave']}' (página {pagina}): {len(ofertas)} produtos com link de afiliado")
 
@@ -195,9 +234,34 @@ def buscar_ofertas_shopee(pagina):
     return todas_as_ofertas
 
 
+def buscar_ofertas_mercadolivre(pagina):
+    """Percorre as buscas no Mercado Livre e devolve as promoções com link de afiliado."""
+    if not mercadolivre.configurado():
+        print("⚠️ ML_CLIENT_ID e ML_CLIENT_SECRET não configurados. Nenhuma oferta do Mercado Livre será buscada.")
+        return []
+    if not mercadolivre.conectado():
+        print("⚠️ Conta do Mercado Livre não conectada. Acesse /mercadolivre no site para conectar.")
+        return []
+
+    todas_as_ofertas = []
+    ids_vistos = set()
+    for busca in BUSCAS:
+        ofertas = mercadolivre.buscar_produtos_mercadolivre(
+            busca["palavra_chave"], busca["categoria"], PRODUTOS_POR_BUSCA, pagina
+        )
+        print(f"🔎 Mercado Livre '{busca['palavra_chave']}' (página {pagina}): {len(ofertas)} promoções com link de afiliado")
+        for oferta in ofertas:
+            if oferta["id"] not in ids_vistos:
+                ids_vistos.add(oferta["id"])
+                todas_as_ofertas.append(oferta)
+        time.sleep(1)
+    return todas_as_ofertas
+
+
 # Cada loja integrada entra nesta lista com a sua função de busca
 FONTES_DE_OFERTAS = [
     ("shopee", buscar_ofertas_shopee),
+    ("mercadolivre", buscar_ofertas_mercadolivre),
 ]
 
 
