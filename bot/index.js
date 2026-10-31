@@ -4,6 +4,7 @@
 //   consultando o site a cada minuto; o site decide o que enviar e quando (10 em 10 min).
 // - Repassa ao site as mensagens recebidas no privado e responde com o texto devolvido.
 // - No grupo, o dono do número escreve !ativar para o bot começar a postar ali.
+// - Repassa os feedbacks do rodapé do site para a conversa do próprio número ("Você").
 
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
@@ -12,6 +13,7 @@ import makeWASocket, {
     Browsers,
     DisconnectReason,
     fetchLatestBaileysVersion,
+    jidNormalizedUser,
     useMultiFileAuthState,
 } from '@whiskeysockets/baileys';
 
@@ -162,6 +164,31 @@ export async function enviarPendentes(sock, pausaMs = PAUSA_ENTRE_ENVIOS_MS) {
     }
 }
 
+// Chat do próprio número (no WhatsApp aparece como "Você" / "Mensagem para mim")
+export function chatDoProprioNumero(sock) {
+    return sock.user?.id ? jidNormalizedUser(sock.user.id) : `${NUMERO_BOT}@s.whatsapp.net`;
+}
+
+export async function enviarFeedbacks(sock, pausaMs = PAUSA_ENTRE_ENVIOS_MS) {
+    const { feedbacks = [] } = await chamarSite('/api/whatsapp/feedbacks');
+    if (!feedbacks.length) return;
+    const destino = chatDoProprioNumero(sock);
+    const enviados = [];
+    for (const feedback of feedbacks) {
+        try {
+            await sock.sendMessage(destino, { text: feedback.mensagem });
+            enviados.push(feedback.id);
+        } catch (erro) {
+            console.error(`Erro ao repassar o feedback ${feedback.id}: ${erro.message}`);
+        }
+        await esperar(pausaMs);
+    }
+    if (enviados.length) {
+        await chamarSite('/api/whatsapp/feedbacks/confirmar', { metodo: 'POST', corpo: { ids: enviados } });
+        console.log(`💬 ${enviados.length} feedback(s) repassado(s) para o seu WhatsApp`);
+    }
+}
+
 async function conectar() {
     const { state, saveCreds } = await useMultiFileAuthState(PASTA_SESSAO);
     const { version } = await fetchLatestBaileysVersion();
@@ -226,6 +253,11 @@ async function cicloDeEnvio() {
         await enviarPendentes(socketAtual);
     } catch (erro) {
         console.error('Erro ao buscar ofertas no site:', erro.message);
+    }
+    try {
+        await enviarFeedbacks(socketAtual);
+    } catch (erro) {
+        console.error('Erro ao buscar feedbacks no site:', erro.message);
     } finally {
         enviando = false;
     }

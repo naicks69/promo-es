@@ -30,6 +30,11 @@ from database import (
     contar_grupos,
     agora_utc,
     data_iso,
+    salvar_feedback,
+    feedbacks_pendentes,
+    marcar_feedbacks_enviados,
+    ultimos_feedbacks,
+    limpar_feedbacks_antigos,
 )
 from collections import deque
 from scraper import buscar_ofertas_afiliados, filtrar_repetidos, pesquisar_nas_lojas, link_busca_amazon, CATEGORIAS, LOJAS
@@ -169,6 +174,71 @@ def buscar_nas_lojas():
         if resultados:
             cache_buscas[chave] = (agora, resposta)
     return jsonify(resposta)
+
+
+# Feedback do rodapé: até 3 mensagens a cada 10 minutos por pessoa
+FEEDBACKS_POR_JANELA = 3
+JANELA_FEEDBACK_SEGUNDOS = 600
+feedbacks_recentes = {}
+
+
+@app.route("/api/feedback", methods=["POST"])
+def receber_feedback():
+    """Guarda o comentário do cliente; o bot repassa para o WhatsApp do próprio número."""
+    dados = request.get_json(silent=True) or {}
+    # Campo escondido: só robôs de spam preenchem
+    if dados.get("site"):
+        return jsonify({"status": "sucesso"})
+    texto = str(dados.get("texto") or "").strip()[:1000]
+    contato = " ".join(str(dados.get("contato") or "").split())[:80]
+    if len(texto) < 3:
+        return jsonify({"status": "erro", "mensagem": "Escreva um pouco mais."}), 400
+
+    agora = time.time()
+    with trava_busca:
+        historico = feedbacks_recentes.setdefault(ip_do_visitante(), deque())
+        while historico and agora - historico[0] > JANELA_FEEDBACK_SEGUNDOS:
+            historico.popleft()
+        if len(historico) >= FEEDBACKS_POR_JANELA:
+            return jsonify({"status": "erro", "mensagem": "Recebemos suas mensagens. Tente de novo daqui a alguns minutos."}), 429
+        historico.append(agora)
+        if len(feedbacks_recentes) > 2000:
+            feedbacks_recentes.clear()
+
+    salvar_feedback(texto, contato)
+    return jsonify({"status": "sucesso"})
+
+
+@app.route("/api/whatsapp/feedbacks", methods=["GET"])
+def feedbacks_para_o_bot():
+    """O bot busca os feedbacks novos e manda no WhatsApp do próprio número."""
+    if not pedido_do_bot_autorizado():
+        return recusar_pedido_do_bot()
+    feedbacks = feedbacks_pendentes()
+    for f in feedbacks:
+        quando = ""
+        if f["data"]:
+            momento = datetime.fromisoformat(f["data"].replace("Z", "+00:00")) - timedelta(hours=3)
+            quando = momento.strftime("%d/%m às %H:%M")
+        texto = f"💬 *Feedback do site*\n\n{f['texto']}"
+        if f["contato"]:
+            texto += f"\n\n📇 Contato: {f['contato']}"
+        if quando:
+            texto += f"\n\n🕒 {quando} (Brasília)"
+        f["mensagem"] = texto
+    return jsonify({"feedbacks": feedbacks})
+
+
+@app.route("/api/whatsapp/feedbacks/confirmar", methods=["POST"])
+def confirmar_feedbacks():
+    if not pedido_do_bot_autorizado():
+        return recusar_pedido_do_bot()
+    ids = (request.get_json(silent=True) or {}).get("ids") or []
+    if not isinstance(ids, list):
+        return jsonify({"status": "erro", "mensagem": "Informe a lista de ids"}), 400
+    marcar_feedbacks_enviados(ids)
+    limpar_feedbacks_antigos()
+    return jsonify({"status": "sucesso", "registrados": len(ids)})
 
 
 @app.route("/api/status", methods=["GET"])
@@ -424,6 +494,7 @@ def painel_admin():
         aliexpress_diagnostico=aliexpress.ultimo_diagnostico(),
         grupos=contar_grupos(),
         link_grupo=link_do_grupo(),
+        feedbacks=ultimos_feedbacks(),
     )
 
 

@@ -5,25 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Radar de Ofertas | Amazon, Shopee, Mercado Livre e AliExpress</title>
     <meta name="description" content="Promoções da Amazon, Shopee, Mercado Livre e AliExpress atualizadas a cada 5 minutos. Receba as ofertas no WhatsApp.">
-    <meta name="theme-color" content="#1B2A4A">
+    <meta name="theme-color" content="#0A0A0B">
+    <meta name="color-scheme" content="dark">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 
     <script>document.documentElement.classList.add('js');</script>
     <style>
         :root {
-            --tinta: #1B2A4A;
-            --tinta-forte: #121D35;
-            --tinta-suave: #5A6782;
-            --linha: #E2E5EC;
-            --fundo: #F3F4F7;
-            --papel: #FFFFFF;
+            color-scheme: dark;
+            --fundo: #0A0A0B;
+            --superficie: #131315;
+            --superficie-2: #1A1A1D;
+            --superficie-3: #232327;
+            --superficie-4: #2E2E33;
+            --linha: rgba(255, 255, 255, 0.07);
+            --linha-forte: rgba(255, 255, 255, 0.14);
+            --texto: #F4F1EA;
+            --texto-suave: #A6A39C;
+            --texto-fraco: #77756F;
+
+            --roxo: #8B6CFF;
+            --roxo-claro: #BBA9FF;
+            --roxo-fundo: #16122A;
             --etiqueta: #FFD60A;
-            --preco: #D7192A;
-            --whatsapp: #1FAF5A;
-            --whatsapp-fundo: #E7F7EE;
+            --verde: #25D366;
+            --verde-claro: #7CF0A9;
+            --vermelho: #FF5A4E;
 
             /* Cores das lojas */
             --amazon: #FF9900;
@@ -32,28 +42,26 @@
             --shopee-texto: #FFFFFF;
             --mercadolivre: #FFE600;
             --mercadolivre-texto: #2D3277;
-            --aliexpress: #FFFFFF;
-            --aliexpress-texto: #E62E04;
-
-            --tinta-clara: #24375F;
-            --tinta-mais-clara: #2E4573;
+            --aliexpress: #FF4D2E;
+            --aliexpress-texto: #FFFFFF;
 
             /* Movimento */
             --suave: cubic-bezier(0.2, 0.7, 0.2, 1);
+            --mola: cubic-bezier(0.32, 0.72, 0, 1);
             --rapido: 160ms;
             --medio: 320ms;
-            --lento: 560ms;
+            --lento: 640ms;
 
-            --fonte: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
-            --fonte-preco: "Barlow Condensed", "Arial Narrow", sans-serif;
+            --fonte: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+            --serifa: "Instrument Serif", "Iowan Old Style", Georgia, serif;
         }
 
         *, *::before, *::after { box-sizing: border-box; }
-
+        html { background: var(--fundo); }
         body {
             margin: 0;
             background: var(--fundo);
-            color: var(--tinta);
+            color: var(--texto);
             font-family: var(--fonte);
             font-size: 16px;
             line-height: 1.5;
@@ -61,945 +69,694 @@
             display: flex;
             flex-direction: column;
             min-height: 100vh;
+            overflow-x: clip;
         }
-
         img { display: block; max-width: 100%; }
         a { color: inherit; }
         button { font: inherit; color: inherit; cursor: pointer; }
+        em { font-family: var(--serifa); font-style: italic; font-weight: 400; letter-spacing: -0.01em; }
+        ::selection { background: var(--roxo); color: #fff; }
+        :focus-visible { outline: 2px solid var(--roxo-claro); outline-offset: 3px; border-radius: 8px; }
 
-        :focus-visible {
-            outline: 3px solid var(--etiqueta);
-            outline-offset: 2px;
-            border-radius: 6px;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 1180px;
-            margin: 0 auto;
-            padding: 0 16px;
-        }
-
+        .container { width: 100%; max-width: 1240px; margin: 0 auto; padding: 0 16px; }
         .oculto-visualmente {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            overflow: hidden;
-            clip: rect(0 0 0 0);
-            white-space: nowrap;
+            position: absolute; width: 1px; height: 1px; overflow: hidden;
+            clip: rect(0 0 0 0); white-space: nowrap;
+        }
+        .so-tela-grande { display: none; }
+        @media (min-width: 640px) { .so-celular { display: none; } .so-tela-grande { display: inline; } }
+
+        /* Rótulo pequeno em caixa alta, usado acima dos títulos */
+        .sobretitulo {
+            display: inline-flex; align-items: center; gap: 8px;
+            margin: 0 0 14px;
+            font-size: 12.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+            color: var(--texto-suave);
         }
 
         /* ---------- Topo ---------- */
         .topo {
-            background: var(--tinta);
-            color: #fff;
-            position: sticky;
-            top: 0;
-            z-index: 20;
+            position: sticky; top: 0; z-index: 20;
+            background: rgba(10, 10, 11, 0.72);
+            -webkit-backdrop-filter: saturate(160%) blur(16px);
+            backdrop-filter: saturate(160%) blur(16px);
+            box-shadow: 0 1px 0 transparent;
+            transition: box-shadow var(--medio) var(--suave);
         }
-        .topo .container {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            height: 60px;
-        }
+        .topo.rolou { box-shadow: 0 1px 0 var(--linha); }
+        .topo .container { display: flex; align-items: center; justify-content: space-between; gap: 10px; height: 64px; }
         .marca {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            text-decoration: none;
-            font-weight: 800;
-            font-size: 17px;
-            letter-spacing: -0.02em;
-            white-space: nowrap;
+            display: flex; align-items: center; gap: 10px;
+            text-decoration: none; font-weight: 600; font-size: 17px; letter-spacing: -0.02em; white-space: nowrap;
         }
+        .marca em { font-size: 1.12em; color: var(--roxo-claro); }
         .marca svg { width: 30px; height: 30px; flex: none; }
         .marca .varredura { transform-origin: 16px 16px; animation: girar 4s linear infinite; }
         @keyframes girar { to { transform: rotate(360deg); } }
         .topo-acoes { display: flex; align-items: center; gap: 8px; }
         .botao-topo {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            height: 40px;
-            padding: 0 14px;
-            border-radius: 999px;
-            border: 0;
-            background: rgba(255, 255, 255, 0.12);
-            color: #fff;
-            font-size: 14px;
-            font-weight: 600;
-            text-decoration: none;
-            white-space: nowrap;
+            display: inline-flex; align-items: center; gap: 7px;
+            height: 40px; padding: 0 15px;
+            border: 0; border-radius: 999px;
+            background: var(--superficie-3); color: var(--texto);
+            font-size: 14px; font-weight: 500; text-decoration: none; white-space: nowrap;
         }
-        .botao-topo svg { width: 18px; height: 18px; flex: none; }
-        .botao-topo, .loja, .chip, .comprar, .compartilhar, .fav, .botao-grupo, .flutuante,
-        .busca-lojas button, .fechar-resultados, .mais-ofertas, .limpar-filtros, .abrir-whatsapp {
-            transition: transform var(--rapido) var(--suave), background-color var(--rapido) var(--suave),
-                        color var(--rapido) var(--suave), opacity var(--rapido) var(--suave);
-        }
-        .botao-topo:active, .loja:active, .chip:active, .comprar:active, .compartilhar:active,
-        .botao-grupo:active, .flutuante:active, .mais-ofertas:active, .busca-lojas button:active,
-        .abrir-whatsapp:active { transform: scale(0.96); }
-        .botao-topo:hover { background: rgba(255, 255, 255, 0.2); }
-        .botao-topo.whatsapp:hover { background: #22C065; }
-        .botao-topo[aria-pressed="true"] { background: #fff; color: var(--tinta); }
-        .botao-topo.whatsapp { background: var(--whatsapp); }
+        .botao-topo svg { width: 17px; height: 17px; flex: none; }
+        .botao-topo:hover { background: var(--superficie-4); }
+        .botao-topo[aria-pressed="true"] { background: var(--texto); color: var(--fundo); }
+        .botao-topo.whatsapp { background: var(--verde); color: #052414; font-weight: 600; }
+        .botao-topo.whatsapp:hover { background: #3BE07A; }
         .contador {
-            min-width: 20px;
-            height: 20px;
-            padding: 0 6px;
-            border-radius: 999px;
-            background: var(--preco);
-            color: #fff;
-            font-size: 12px;
-            line-height: 20px;
-            text-align: center;
+            min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
+            background: var(--roxo); color: #fff;
+            font-size: 12px; font-weight: 600; line-height: 20px; text-align: center;
         }
-        .so-tela-grande { display: none; }
-        @media (min-width: 640px) { .so-celular { display: none; } }
         @media (max-width: 400px) {
             .botao-topo.whatsapp .rotulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
             .botao-topo.whatsapp { padding: 0 11px; }
         }
 
-        /* ---------- Abertura ---------- */
-        .abertura {
-            background: var(--tinta);
-            color: #fff;
-            padding: 8px 0 0;
-            overflow: hidden;
+        /* Pequeno movimento em tudo que é clicável */
+        .botao-topo, .loja, .chip, .comprar, .compartilhar, .fav, .botao-grupo, .flutuante,
+        .busca-lojas button, .fechar-resultados, .mais-ofertas, .limpar-filtros, .abrir-whatsapp, .morph-enviar {
+            transition: transform var(--rapido) var(--suave), background-color var(--rapido) var(--suave),
+                        color var(--rapido) var(--suave), opacity var(--rapido) var(--suave), box-shadow var(--rapido) var(--suave);
         }
-        .abertura-grade { display: grid; gap: 24px; align-items: center; }
+        .botao-topo:active, .loja:active, .chip:active, .comprar:active, .compartilhar:active,
+        .botao-grupo:active, .flutuante:active, .mais-ofertas:active, .busca-lojas button:active,
+        .abrir-whatsapp:active, .morph-enviar:active { transform: scale(0.96); }
+
+        /* ---------- Abertura ---------- */
+        .abertura { padding: 28px 0 0; }
+        .abertura-grade { display: grid; gap: 28px; align-items: center; }
         .abertura h1 {
             margin: 0;
-            max-width: 16ch;
-            font-size: clamp(34px, 9vw, 54px);
-            line-height: 1;
-            font-weight: 800;
-            letter-spacing: -0.035em;
+            max-width: 12ch;
+            font-size: clamp(46px, 13vw, 76px);
+            line-height: 0.95;
+            font-weight: 600;
+            letter-spacing: -0.05em;
         }
-        .abertura p {
-            margin: 12px 0 0;
-            max-width: 52ch;
-            font-size: 16px;
-            color: #C9D1E3;
+        .abertura h1 em { color: var(--roxo-claro); letter-spacing: -0.03em; padding-right: 0.04em; }
+        .abertura .apoio {
+            margin: 20px 0 0; max-width: 46ch;
+            font-size: 17px; line-height: 1.55; color: var(--texto-suave);
         }
 
         .lojas {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 8px;
-            margin-top: 20px;
-            max-width: 820px;
+            display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px; margin-top: 28px; max-width: 760px;
         }
         .loja {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            justify-content: center;
-            gap: 2px;
-            min-height: 64px;
-            padding: 10px 12px;
-            border: 3px solid transparent;
-            border-radius: 14px;
-            text-align: left;
-            font-weight: 800;
-            font-size: 15px;
-            line-height: 1.1;
-            letter-spacing: -0.01em;
+            position: relative;
+            display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 4px;
+            min-height: 74px; padding: 12px 14px 12px 16px;
+            border: 0; border-radius: 18px;
+            background: var(--superficie-2); color: var(--texto);
+            text-align: left; font-weight: 600; font-size: 15.5px; line-height: 1.1; letter-spacing: -0.01em;
+            overflow: hidden;
         }
-        .loja small {
-            font-size: 12.5px;
-            font-weight: 600;
-            opacity: 0.8;
+        .loja::before {
+            content: ""; width: 10px; height: 10px; border-radius: 50%;
+            background: var(--cor-loja); margin-bottom: 4px;
+            transition: transform var(--medio) var(--mola);
         }
-        .loja[data-loja="amazon"] { background: var(--amazon); color: var(--amazon-texto); }
-        .loja[data-loja="shopee"] { background: var(--shopee); color: var(--shopee-texto); }
-        .loja[data-loja="mercadolivre"] { background: var(--mercadolivre); color: var(--mercadolivre-texto); }
-        .loja[data-loja="aliexpress"] { background: var(--aliexpress); color: var(--aliexpress-texto); }
-        .loja[data-loja="aliexpress"][aria-pressed="true"] { border-color: var(--aliexpress-texto); }
-        .loja[aria-pressed="true"] { border-color: #fff; box-shadow: 0 0 0 2px var(--tinta) inset; }
-        .loja:not(:disabled):hover { transform: translateY(-3px); }
-        .loja:disabled { cursor: default; opacity: 0.55; }
+        .loja small { font-size: 13px; font-weight: 500; color: var(--texto-suave); font-variant-numeric: tabular-nums; }
+        .loja[data-loja="amazon"] { --cor-loja: var(--amazon); --cor-texto: var(--amazon-texto); }
+        .loja[data-loja="shopee"] { --cor-loja: var(--shopee); --cor-texto: var(--shopee-texto); }
+        .loja[data-loja="mercadolivre"] { --cor-loja: var(--mercadolivre); --cor-texto: var(--mercadolivre-texto); }
+        .loja[data-loja="aliexpress"] { --cor-loja: var(--aliexpress); --cor-texto: var(--aliexpress-texto); }
+        .loja:not(:disabled):hover { background: var(--superficie-3); transform: translateY(-3px); }
+        .loja:not(:disabled):hover::before { transform: scale(1.4); }
+        .loja[aria-pressed="true"], .loja[aria-pressed="true"]:hover { background: var(--cor-loja); color: var(--cor-texto); }
+        .loja[aria-pressed="true"] small { color: inherit; opacity: 0.8; }
+        .loja[aria-pressed="true"]::before { background: var(--cor-texto); }
+        .loja:disabled { cursor: default; opacity: 0.45; }
 
         .atualizado {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: 16px;
-            font-size: 14px;
-            font-weight: 600;
-            color: #C9D1E3;
+            display: inline-flex; align-items: center; gap: 10px;
+            margin-top: 20px; padding: 8px 14px 8px 12px; border-radius: 999px;
+            background: var(--superficie);
+            font-size: 13.5px; font-weight: 500; color: var(--texto-suave);
         }
-        .ponto-ao-vivo { position: relative; width: 9px; height: 9px; flex: none; }
+        .ponto-ao-vivo { position: relative; width: 8px; height: 8px; flex: none; }
         .ponto-ao-vivo::before, .ponto-ao-vivo::after {
-            content: "";
-            position: absolute;
-            inset: 0;
-            border-radius: 50%;
-            background: var(--whatsapp);
+            content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--verde);
         }
         .ponto-ao-vivo::after { animation: pulso 2s var(--suave) infinite; }
-        @keyframes pulso {
-            from { transform: scale(1); opacity: 0.7; }
-            to { transform: scale(3); opacity: 0; }
-        }
+        @keyframes pulso { from { transform: scale(1); opacity: 0.7; } to { transform: scale(3.2); opacity: 0; } }
 
         /* Radar: as ofertas mais novas aparecem como pontos enquanto o feixe gira */
-        .radar { display: none; position: relative; width: 100%; max-width: 400px; aspect-ratio: 1; justify-self: end; }
+        .radar {
+            display: none; position: relative; width: 100%; max-width: 460px; aspect-ratio: 1; justify-self: end;
+            border-radius: 50%;
+            box-shadow: 0 0 0 1px rgba(139, 108, 255, 0.12), 0 0 140px 10px rgba(139, 108, 255, 0.18);
+        }
         .radar svg.fundo-radar { position: absolute; inset: 0; width: 100%; height: 100%; }
         .radar .feixe { transform-origin: 200px 200px; animation: girar 6s linear infinite; }
         .radar .ponto {
-            position: absolute;
-            width: 21%;
-            aspect-ratio: 1;
-            margin: -10.5% 0 0 -10.5%;
-            border-radius: 50%;
-            background: #fff;
-            overflow: hidden;
-            opacity: 0;
-            transform: scale(0.4);
+            position: absolute; width: 20%; aspect-ratio: 1; margin: -10% 0 0 -10%;
+            border-radius: 50%; background: #fff; overflow: hidden;
+            box-shadow: 0 0 0 4px rgba(139, 108, 255, 0.28), 0 12px 30px rgba(0, 0, 0, 0.5);
+            opacity: 0; transform: scale(0.4);
             animation: aparecer-ponto 6s var(--suave) infinite;
             text-decoration: none;
         }
         .radar .ponto img { width: 100%; height: 100%; object-fit: contain; padding: 10%; }
-        .radar .ponto:hover, .radar .ponto:focus-visible { animation-play-state: paused; opacity: 1; transform: scale(1.08); }
+        .radar .ponto:hover, .radar .ponto:focus-visible { animation-play-state: paused; opacity: 1; transform: scale(1.1); }
         @keyframes aparecer-ponto {
             0% { opacity: 0; transform: scale(0.4); }
-            8% { opacity: 1; transform: scale(1.06); }
+            8% { opacity: 1; transform: scale(1.08); }
             14%, 70% { opacity: 1; transform: scale(1); }
-            85%, 100% { opacity: 0.55; transform: scale(0.94); }
+            85%, 100% { opacity: 0.5; transform: scale(0.94); }
         }
 
-        /* Faixa "acabou de cair no radar": passa sozinha e para ao passar o mouse ou tocar */
-        .chegaram { margin-top: 24px; padding: 14px 0 16px; background: var(--tinta-forte); }
-        .chegaram h2 {
-            margin: 0 0 10px;
-            font-size: 15px;
-            font-weight: 700;
-            color: #C9D1E3;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+        /* Faixa cinética com as lojas, em letras grandes */
+        .faixa-envolve { overflow: hidden; margin-top: 32px; padding: 24px 0; }
+        .faixa-cinetica {
+            padding: 16px 0;
+            background: var(--roxo);
+            color: #0A0A0B;
+            transform: rotate(-2deg) scale(1.04);
+            overflow: hidden;
         }
-        .trilho { overflow: hidden; }
-        .trilho-faixa { display: flex; gap: 10px; width: max-content; animation: deslizar 60s linear infinite; }
+        .faixa-cinetica .trilho-faixa { animation-duration: 40s; gap: 0; }
+        .faixa-cinetica span {
+            display: inline-flex; align-items: center; gap: 28px; padding-right: 28px;
+            font-size: clamp(30px, 6vw, 56px); font-weight: 600; letter-spacing: -0.04em; line-height: 1;
+            white-space: nowrap;
+        }
+        .faixa-cinetica em { font-size: 1.12em; }
+        .faixa-cinetica i { font-style: normal; font-size: 0.6em; }
+
+        /* Faixa "acabou de cair no radar": passa sozinha e para ao passar o mouse ou tocar */
+        .chegaram { padding: 64px 0 8px; }
+        .chegaram .sobretitulo { margin: 0 0 16px; }
+        .trilho { overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
+        .trilho-faixa { display: flex; gap: 10px; width: max-content; animation: deslizar 70s linear infinite; }
         .trilho:hover .trilho-faixa, .trilho:focus-within .trilho-faixa { animation-play-state: paused; }
         @keyframes deslizar { to { transform: translateX(-50%); } }
         .mini {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            width: 240px;
-            padding: 8px 12px 8px 8px;
-            border-radius: 12px;
-            background: var(--tinta-clara);
-            color: #fff;
-            text-decoration: none;
-            transition: background-color var(--rapido) var(--suave), transform var(--rapido) var(--suave);
+            display: flex; align-items: center; gap: 12px;
+            width: 270px; padding: 8px 14px 8px 8px; border-radius: 18px;
+            background: var(--superficie); color: var(--texto); text-decoration: none;
+            transition: background-color var(--rapido) var(--suave), transform var(--medio) var(--mola);
         }
-        .mini:hover { background: var(--tinta-mais-clara); transform: translateY(-2px); }
-        .mini img, .mini .sem-foto { width: 52px; height: 52px; flex: none; border-radius: 8px; background: #fff; object-fit: contain; padding: 3px; }
+        .mini:hover { background: var(--superficie-3); transform: translateY(-3px); }
+        .mini img { width: 58px; height: 58px; flex: none; border-radius: 12px; background: #fff; object-fit: contain; padding: 4px; }
         .mini span { display: block; min-width: 0; }
-        .mini .nome { font-size: 13px; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-        .mini .valor { font-family: var(--fonte-preco); font-weight: 800; font-size: 20px; color: var(--etiqueta); line-height: 1.1; }
+        .mini .nome { font-size: 13px; line-height: 1.35; color: var(--texto-suave); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+        .mini .valor { margin-top: 2px; font-weight: 600; font-size: 17px; letter-spacing: -0.02em; color: var(--texto); font-variant-numeric: tabular-nums; }
 
-        /* Faixa com as cores das quatro lojas */
-        .faixa-lojas { display: flex; height: 6px; }
-        .faixa-lojas span { flex: 1; }
+        /* ---------- Títulos de seção ---------- */
+        .titulo-secao {
+            margin: 0;
+            font-size: clamp(36px, 8vw, 64px); font-weight: 600; line-height: 0.98; letter-spacing: -0.045em;
+        }
+        .titulo-secao em { color: var(--roxo-claro); }
+        .cabeca-vitrine { padding: 72px 0 8px; }
 
         /* ---------- Grupo de promoções no WhatsApp ---------- */
         .grupo-promo {
             grid-column: 1 / -1;
-            display: grid;
-            gap: 20px;
-            padding: 22px 18px;
-            border-radius: 18px;
-            background: #0B4F3C;
-            color: #fff;
+            display: grid; gap: 24px;
+            margin: 16px 0;
+            padding: 28px 20px;
+            border-radius: 28px;
+            background: var(--verde);
+            color: #04170C;
         }
         .grupo-texto h2 {
-            margin: 0 0 12px;
-            font-size: clamp(24px, 6vw, 34px);
-            line-height: 1.05;
-            letter-spacing: -0.03em;
+            margin: 0 0 16px;
+            font-size: clamp(34px, 8vw, 58px); font-weight: 600; line-height: 0.95; letter-spacing: -0.045em;
         }
         .grupo-texto ul {
-            margin: 0 0 18px;
-            padding: 0;
-            list-style: none;
-            display: grid;
-            gap: 8px;
-            font-size: 15px;
-            color: #D4EFE2;
+            margin: 0 0 24px; padding: 0; list-style: none;
+            display: grid; gap: 10px; font-size: 16px; font-weight: 500;
         }
-        .grupo-texto li { display: flex; gap: 8px; align-items: baseline; }
-        .grupo-texto li::before { content: "✓"; color: #5EE59A; font-weight: 800; }
+        .grupo-texto li { display: flex; gap: 10px; align-items: baseline; }
+        .grupo-texto li::before { content: "✦"; font-size: 13px; }
         .botao-grupo {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            width: 100%;
-            height: 52px;
-            padding: 0 20px;
-            border: 0;
-            border-radius: 12px;
-            background: var(--whatsapp);
-            color: #fff;
-            font-size: 16px;
-            font-weight: 700;
-            text-decoration: none;
+            display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+            width: 100%; height: 56px; padding: 0 26px;
+            border: 0; border-radius: 999px;
+            background: #04170C; color: #fff;
+            font-size: 16px; font-weight: 600; text-decoration: none;
         }
         .botao-grupo svg { width: 22px; height: 22px; }
-        .botao-grupo:hover { background: #22C065; transform: translateY(-2px); }
+        .botao-grupo:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(4, 23, 12, 0.35); }
         .link-privado {
-            display: block;
-            margin: 12px auto 0;
-            padding: 4px;
-            border: 0;
-            background: none;
-            color: #D4EFE2;
-            font-size: 14px;
-            text-decoration: underline;
+            display: block; margin: 14px auto 0; padding: 4px; border: 0; background: none;
+            color: #04170C; font-size: 14.5px; font-weight: 500; text-decoration: underline; text-underline-offset: 3px;
         }
 
         /* Prévia da conversa: a oferta mais nova como o bot posta no grupo */
         .conversa {
-            border-radius: 14px;
-            overflow: hidden;
-            background: #EFEAE2;
-            color: #111B21;
-            max-width: 380px;
-            width: 100%;
-            justify-self: center;
+            border-radius: 20px; overflow: hidden; background: #EFEAE2; color: #111B21;
+            max-width: 380px; width: 100%; justify-self: center;
+            box-shadow: 0 30px 60px rgba(4, 23, 12, 0.35);
+            transform: rotate(2deg);
+            transition: transform var(--lento) var(--mola);
         }
-        .conversa-topo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px 12px;
-            background: #F0F2F5;
-            border-bottom: 1px solid #E1E3E6;
-        }
+        .grupo-promo:hover .conversa { transform: rotate(0deg) translateY(-4px); }
+        .conversa-topo { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #F0F2F5; }
         .conversa-topo .avatar svg { width: 34px; height: 34px; display: block; }
         .conversa-topo strong { display: block; font-size: 15px; line-height: 1.2; }
         .conversa-topo small { font-size: 12.5px; color: #667781; }
         .conversa-corpo { padding: 14px 12px 16px; }
         .balao {
-            position: relative;
-            max-width: 290px;
-            padding: 4px 4px 6px;
-            border-radius: 0 10px 10px 10px;
-            background: #fff;
+            position: relative; max-width: 290px; padding: 4px 4px 6px;
+            border-radius: 0 10px 10px 10px; background: #fff;
             box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
-            font-size: 14px;
-            line-height: 1.4;
+            font-size: 14px; line-height: 1.4;
         }
         .balao::before {
-            content: "";
-            position: absolute;
-            left: -8px;
-            top: 0;
-            border: 8px solid transparent;
-            border-top-color: #fff;
-            border-right-color: #fff;
-            border-width: 0 8px 10px 0;
+            content: ""; position: absolute; left: -8px; top: 0;
+            border: 8px solid transparent; border-top-color: #fff; border-right-color: #fff; border-width: 0 8px 10px 0;
         }
-        .balao img {
-            width: 100%;
-            aspect-ratio: 4 / 3;
-            max-height: 190px;
-            object-fit: contain;
-            background: #FFFFFF;
-            border-radius: 7px;
-            margin-bottom: 6px;
-        }
+        .balao img { width: 100%; aspect-ratio: 4 / 3; max-height: 190px; object-fit: contain; background: #fff; border-radius: 7px; margin-bottom: 6px; }
         .balao p { margin: 0 6px 6px; overflow-wrap: anywhere; }
         .balao .link-falso { color: #027EB5; }
-        .balao time {
-            display: block;
-            margin: -2px 6px 0;
-            text-align: right;
-            font-size: 11px;
-            color: #667781;
-        }
+        .balao time { display: block; margin: -2px 6px 0; text-align: right; font-size: 11px; color: #667781; }
 
         /* Botão flutuante do grupo */
         .flutuante {
-            position: fixed;
-            right: 16px;
-            bottom: 16px;
-            z-index: 25;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            height: 52px;
-            padding: 0 18px 0 14px;
-            border: 0;
-            border-radius: 999px;
-            background: var(--whatsapp);
-            color: #fff;
-            font-size: 15px;
-            font-weight: 700;
-            text-decoration: none;
-            box-shadow: 0 6px 18px rgba(11, 79, 60, 0.35);
+            position: fixed; right: 16px; bottom: 16px; z-index: 25;
+            display: inline-flex; align-items: center; gap: 8px;
+            height: 52px; padding: 0 20px 0 15px;
+            border: 0; border-radius: 999px;
+            background: var(--verde); color: #04170C;
+            font-size: 15px; font-weight: 600; text-decoration: none;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
         }
-        .flutuante svg { width: 24px; height: 24px; }
-        .flutuante:hover { background: #22C065; transform: translateY(-2px); }
+        .flutuante svg { width: 23px; height: 23px; }
+        .flutuante:hover { background: #3BE07A; transform: translateY(-2px); }
         .js .flutuante:not(.visivel) { opacity: 0; transform: translateY(24px); pointer-events: none; }
 
         /* ---------- Filtros ---------- */
         .filtros {
-            position: sticky;
-            top: 60px;
-            z-index: 15;
-            margin: 0 -16px;
-            padding: 12px 16px 10px;
-            display: grid;
-            gap: 10px;
-            background: var(--fundo);
+            position: sticky; top: 64px; z-index: 15;
+            margin: 0 -16px; padding: 14px 16px 12px;
+            display: grid; gap: 10px;
+            background: rgba(10, 10, 11, 0.86);
+            /* O fundo escuro vai de ponta a ponta da tela, mesmo com o conteúdo centralizado */
+            box-shadow: 0 0 0 100vmax rgba(10, 10, 11, 0.86);
+            clip-path: inset(0 -100vmax);
+            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px);
         }
         .linha-busca { display: flex; gap: 8px; }
         .busca { position: relative; flex: 1; }
         .busca svg {
-            position: absolute;
-            left: 14px;
-            top: 50%;
-            width: 18px;
-            height: 18px;
-            transform: translateY(-50%);
-            color: var(--tinta-suave);
-            pointer-events: none;
+            position: absolute; left: 16px; top: 50%; width: 18px; height: 18px;
+            transform: translateY(-50%); color: var(--texto-fraco); pointer-events: none;
         }
         .busca input, .ordenar {
-            width: 100%;
-            height: 46px;
-            border: 1.5px solid transparent;
-            border-radius: 12px;
-            background: var(--papel);
-            color: var(--tinta);
-            font: inherit;
-            font-size: 16px;
+            width: 100%; height: 48px;
+            border: 0; border-radius: 999px;
+            background: var(--superficie-2); color: var(--texto);
+            font: inherit; font-size: 16px;
+            box-shadow: inset 0 0 0 1px transparent;
+            transition: box-shadow var(--rapido) var(--suave), background-color var(--rapido) var(--suave);
         }
-        .busca input { padding: 0 14px 0 42px; }
-        .busca input::placeholder { color: var(--tinta-suave); }
-        .busca input:focus, .ordenar:focus { outline: none; border-color: var(--tinta); }
-        .busca input, .ordenar { transition: border-color var(--rapido) var(--suave); }
-        .ordenar {
-            width: auto;
-            max-width: 40%;
-            padding: 0 8px;
-            font-size: 14px;
-        }
+        .busca input { padding: 0 16px 0 44px; }
+        .busca input::placeholder { color: var(--texto-fraco); }
+        .busca input:hover, .ordenar:hover { background: var(--superficie-3); }
+        .busca input:focus, .ordenar:focus { outline: none; box-shadow: inset 0 0 0 1.5px var(--roxo); }
+        .ordenar { width: auto; max-width: 42%; padding: 0 14px; font-size: 14px; }
 
         .categorias {
-            display: flex;
-            gap: 8px;
-            overflow-x: auto;
-            scrollbar-width: none;
-            margin: 0 -16px;
-            padding: 2px 16px 4px;
+            display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
+            margin: 0 -16px; padding: 2px 16px 4px;
         }
         .categorias::-webkit-scrollbar { display: none; }
         .chip {
-            flex: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            height: 38px;
-            padding: 0 14px;
-            border-radius: 999px;
-            border: 0;
-            background: var(--papel);
-            font-size: 15px;
-            font-weight: 600;
+            flex: none; display: inline-flex; align-items: center; gap: 7px;
+            height: 38px; padding: 0 15px;
+            border: 0; border-radius: 999px;
+            background: var(--superficie-2); color: var(--texto-suave);
+            font-size: 14.5px; font-weight: 500;
         }
-        .chip small { font-size: 12.5px; font-weight: 600; color: var(--tinta-suave); }
-        .chip:hover { background: #E4E8F0; }
-        .chip[aria-pressed="true"] { background: var(--tinta); color: #fff; }
-        .chip[aria-pressed="true"] small { color: #C9D1E3; }
+        .chip small { font-size: 12px; font-weight: 500; color: var(--texto-fraco); font-variant-numeric: tabular-nums; }
+        .chip:hover { background: var(--superficie-3); color: var(--texto); }
+        .chip[aria-pressed="true"] { background: var(--texto); color: var(--fundo); }
+        .chip[aria-pressed="true"] small { color: #5C5A55; }
 
-        .resumo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin: 6px 0 0;
-            min-height: 32px;
-            font-size: 14px;
-            color: var(--tinta-suave);
-        }
+        .resumo { display: flex; align-items: center; gap: 10px; margin: 6px 0 0; min-height: 32px; font-size: 14px; color: var(--texto-suave); }
         .limpar-filtros {
-            height: 32px;
-            padding: 0 12px;
-            border: 0;
-            border-radius: 999px;
-            background: #E4E8F0;
-            color: var(--tinta);
-            font-size: 13.5px;
-            font-weight: 600;
+            height: 32px; padding: 0 13px; border: 0; border-radius: 999px;
+            background: var(--superficie-3); color: var(--texto); font-size: 13.5px; font-weight: 500;
         }
-        .limpar-filtros:hover { background: #D8DEE9; }
+        .limpar-filtros:hover { background: var(--superficie-4); }
 
         /* ---------- Busca do cliente nas lojas ---------- */
         .busca-lojas {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin: 8px 0 4px;
-            padding: 12px 14px;
-            border-radius: 12px;
-            background: #E4E8F0;
+            display: flex; align-items: center; gap: 12px;
+            margin: 8px 0 4px; padding: 12px 12px 12px 18px; border-radius: 20px;
+            background: var(--roxo-fundo);
             animation: abrir var(--medio) var(--suave);
         }
         @keyframes abrir { from { opacity: 0; transform: translateY(-8px); } }
         .busca-lojas[hidden], .resultados-lojas[hidden] { display: none; }
-        .busca-lojas p { margin: 0; flex: 1; font-size: 14px; color: var(--tinta-suave); }
-        .busca-lojas b { color: var(--tinta); }
+        .busca-lojas p { margin: 0; flex: 1; font-size: 14.5px; color: var(--texto-suave); }
+        .busca-lojas b { color: var(--texto); }
         .busca-lojas button, .fechar-resultados {
-            flex: none;
-            height: 40px;
-            padding: 0 14px;
-            border: 0;
-            border-radius: 10px;
-            background: var(--tinta);
-            color: #fff;
-            font-size: 14px;
-            font-weight: 600;
+            flex: none; height: 40px; padding: 0 16px; border: 0; border-radius: 999px;
+            background: var(--roxo); color: #fff; font-size: 14px; font-weight: 600;
         }
+        .busca-lojas button:hover { background: #9C81FF; }
         .resultados-lojas {
-            margin: 12px 0 4px;
-            padding: 16px;
-            border-radius: 16px;
-            background: #E4E8F0;
-            scroll-margin-top: 190px;
+            margin: 12px 0 4px; padding: 20px; border-radius: 24px;
+            background: var(--superficie); scroll-margin-top: 200px;
             animation: abrir var(--medio) var(--suave);
         }
         .resultados-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-        .resultados-topo h2 { margin: 0; font-size: 20px; line-height: 1.15; letter-spacing: -0.02em; }
-        .resultados-topo p { margin: 4px 0 0; font-size: 14px; color: var(--tinta-suave); }
-        .fechar-resultados { background: var(--papel); color: var(--tinta); }
-        .vitrine.vitrine-busca { padding: 14px 0 14px; }
-        .carregando-busca, .sem-resultados { margin: 0; color: var(--tinta-suave); }
+        .resultados-topo h2 { margin: 0; font-size: 22px; font-weight: 600; line-height: 1.15; letter-spacing: -0.03em; }
+        .resultados-topo p { margin: 4px 0 0; font-size: 14px; color: var(--texto-suave); }
+        .fechar-resultados { background: var(--superficie-3); color: var(--texto); }
+        .vitrine.vitrine-busca { padding: 16px 0; }
+        .carregando-busca, .sem-resultados { margin: 0; color: var(--texto-suave); }
         .sem-resultados { padding: 8px 0 14px; }
         .botao-amazon {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 48px;
-            padding: 8px 16px;
-            border-radius: 12px;
-            background: var(--amazon);
-            color: var(--amazon-texto);
-            font-weight: 700;
-            text-align: center;
-            text-decoration: none;
+            display: flex; align-items: center; justify-content: center;
+            min-height: 50px; padding: 8px 18px; border-radius: 999px;
+            background: var(--amazon); color: var(--amazon-texto);
+            font-weight: 600; text-align: center; text-decoration: none;
         }
-        @media (max-width: 480px) {
-            .busca-lojas { flex-direction: column; align-items: stretch; }
-        }
+        @media (max-width: 480px) { .busca-lojas { flex-direction: column; align-items: stretch; padding: 14px; } }
 
         /* ---------- Vitrine ---------- */
-        .vitrine {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 12px;
-            padding: 10px 0 24px;
-        }
-
+        .vitrine { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 12px 0 24px; }
         .oferta {
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            background: var(--papel);
-            border-radius: 14px;
-            overflow: hidden;
-            transition: transform var(--medio) var(--suave);
+            position: relative; display: flex; flex-direction: column;
+            padding: 6px; border-radius: 22px;
+            background: var(--superficie);
+            transition: transform var(--medio) var(--mola), background-color var(--medio) var(--suave);
         }
-        .oferta:not(.esqueleto):hover { transform: translateY(-4px); }
-        .oferta .foto img { transition: transform var(--lento) var(--suave); }
-        .oferta:hover .foto img { transform: scale(1.06); }
+        .oferta:not(.esqueleto):hover { transform: translateY(-5px); background: var(--superficie-2); }
+        .oferta .foto img { transition: transform var(--lento) var(--mola); }
+        .oferta:hover .foto img { transform: scale(1.07); }
 
         /* Entrada: só com JavaScript ativo, para nada ficar escondido se o script falhar */
-        .js .entra { opacity: 0; transform: translateY(24px); }
+        .js .entra { opacity: 0; transform: translateY(28px); }
         .js .entra.visivel {
-            opacity: 1;
-            transform: none;
-            transition: opacity var(--lento) var(--suave) var(--atraso, 0ms),
-                        transform var(--lento) var(--suave) var(--atraso, 0ms);
+            opacity: 1; transform: none;
+            transition: opacity var(--lento) var(--suave) var(--atraso, 0ms), transform var(--lento) var(--mola) var(--atraso, 0ms);
         }
-        .js .oferta.entra.visivel:hover { transform: translateY(-4px); transition-delay: 0ms; }
+        .js .oferta.entra.visivel:hover { transform: translateY(-5px); transition-delay: 0ms; }
+        /* Títulos grandes sobem palavra por palavra */
+        .js .revela .palavra { display: inline-block; opacity: 0; transform: translateY(0.45em); filter: blur(6px); }
+        .js .revela.visivel .palavra {
+            opacity: 1; transform: none; filter: none;
+            transition: opacity 700ms var(--suave), transform 900ms var(--mola), filter 700ms var(--suave);
+            transition-delay: calc(var(--i) * 70ms);
+        }
         /* Oferta que chegou com a página aberta */
-        .chegou { animation: chegada 900ms var(--suave); }
-        @keyframes chegada {
-            0% { transform: scale(0.9); }
-            45% { transform: scale(1.03); }
-            100% { transform: none; }
-        }
+        .chegou { animation: chegada 900ms var(--mola); }
+        @keyframes chegada { 0% { transform: scale(0.9); opacity: 0.4; } 45% { transform: scale(1.03); } 100% { transform: none; opacity: 1; } }
+
         .oferta .foto {
-            position: relative;
-            display: block;
-            aspect-ratio: 1;
-            overflow: hidden;
-            background: #FFFFFF;
+            position: relative; display: block; aspect-ratio: 1; overflow: hidden;
+            border-radius: 17px; background: #fff;
         }
         /* Fotos de qualquer formato ficam num quadrado, sem esticar o card nem cortar o produto */
-        .oferta .foto img {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            padding: 6px;
-        }
+        .oferta .foto img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; padding: 10px; }
 
         .selo-loja {
-            position: absolute;
-            left: 8px;
-            bottom: 8px;
-            padding: 3px 8px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 800;
-            line-height: 1.3;
+            position: absolute; left: 8px; bottom: 8px;
+            padding: 4px 9px; border-radius: 999px;
+            font-size: 11.5px; font-weight: 600; line-height: 1.25;
         }
         .selo-loja.amazon { background: var(--amazon); color: var(--amazon-texto); }
         .selo-loja.shopee { background: var(--shopee); color: var(--shopee-texto); }
         .selo-loja.mercadolivre { background: var(--mercadolivre); color: var(--mercadolivre-texto); }
-        .selo-loja.aliexpress { background: #FFE9E3; color: var(--aliexpress-texto); }
+        .selo-loja.aliexpress { background: var(--aliexpress); color: var(--aliexpress-texto); }
         .selo-nova {
-            position: absolute;
-            left: 8px;
-            top: 8px;
-            padding: 3px 8px;
-            border-radius: 6px;
-            background: var(--tinta);
-            color: #fff;
-            font-size: 12px;
-            font-weight: 600;
+            position: absolute; left: 8px; top: 8px;
+            padding: 4px 9px; border-radius: 999px;
+            background: var(--roxo); color: #fff; font-size: 11.5px; font-weight: 600;
         }
-
         .fav {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 36px;
-            height: 36px;
-            display: grid;
-            place-items: center;
-            border: 0;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.92);
-            color: var(--tinta);
+            position: absolute; top: 14px; right: 14px;
+            width: 36px; height: 36px; display: grid; place-items: center;
+            border: 0; border-radius: 50%;
+            background: rgba(10, 10, 11, 0.06); color: #1A1A1D;
         }
         .fav svg { width: 18px; height: 18px; }
-        .fav[aria-pressed="true"] { color: var(--preco); }
+        .fav:hover { transform: scale(1.1); background: rgba(10, 10, 11, 0.1); }
+        .fav[aria-pressed="true"] { color: var(--vermelho); }
         .fav[aria-pressed="true"] svg { fill: currentColor; }
-        .fav:hover { transform: scale(1.1); }
-        .fav.pulsa svg { animation: coracao 500ms var(--suave); }
-        @keyframes coracao {
-            0% { transform: scale(1); }
-            35% { transform: scale(1.45); }
-            100% { transform: scale(1); }
-        }
+        .fav.pulsa svg { animation: coracao 500ms var(--mola); }
+        @keyframes coracao { 0% { transform: scale(1); } 35% { transform: scale(1.45); } 100% { transform: scale(1); } }
 
-        .oferta .info {
-            display: flex;
-            flex-direction: column;
-            flex: 1;
-            padding: 10px;
-            gap: 6px;
-        }
+        .oferta .info { display: flex; flex-direction: column; flex: 1; padding: 12px 8px 6px; gap: 6px; }
         .oferta .titulo {
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            font-size: 14px;
-            line-height: 1.35;
-            text-decoration: none;
-            min-height: 2.7em;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+            font-size: 14px; line-height: 1.38; color: var(--texto); text-decoration: none; min-height: 2.76em;
         }
-        .detalhes {
-            margin: 0;
-            font-size: 12.5px;
-            color: var(--tinta-suave);
-        }
-
-        .preco-antigo {
-            margin: 0;
-            font-size: 13px;
-            color: var(--tinta-suave);
-        }
+        .oferta .titulo:hover { color: #fff; }
+        .detalhes { margin: 0; font-size: 12.5px; color: var(--texto-fraco); }
+        .preco-antigo { margin: 0; font-size: 13px; color: var(--texto-fraco); }
         .preco-antigo .desconto {
-            display: inline-block;
-            margin-left: 4px;
-            padding: 0 6px;
-            border-radius: 6px;
-            background: #E7F7EE;
-            color: #0B6B3A;
-            font-weight: 800;
+            display: inline-block; margin-left: 4px; padding: 1px 7px; border-radius: 999px;
+            background: rgba(124, 240, 169, 0.12); color: var(--verde-claro); font-weight: 600;
         }
 
-        /* Etiqueta de preço no estilo encarte */
+        /* Preço em destaque, numa etiqueta amarela */
         .etiqueta {
-            align-self: flex-start;
-            position: relative;
-            display: inline-flex;
-            align-items: flex-start;
-            margin: 6px 0 4px 2px;
-            padding: 2px 12px 2px 20px;
-            background: var(--etiqueta);
-            color: var(--preco);
-            font-family: var(--fonte-preco);
-            font-weight: 800;
-            line-height: 1;
-            transform: rotate(-2.5deg);
-            clip-path: polygon(10px 0, 100% 0, 100% 100%, 10px 100%, 0 50%);
+            align-self: flex-start; display: inline-flex; align-items: flex-start;
+            margin: 4px 0 2px; padding: 5px 12px 4px 10px; border-radius: 12px;
+            background: var(--etiqueta); color: #0A0A0B;
+            font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums;
+            transform: rotate(-2deg);
+            transition: transform var(--medio) var(--mola);
         }
-        .etiqueta::before {
-            content: "";
-            position: absolute;
-            left: 9px;
-            top: 50%;
-            width: 6px;
-            height: 6px;
-            margin-top: -3px;
-            border-radius: 50%;
-            background: var(--papel);
-        }
-        .etiqueta .rs { font-size: 15px; margin: 6px 3px 0 0; }
-        .etiqueta .inteiro { font-size: 36px; letter-spacing: -0.01em; }
-        .etiqueta .centavos { font-size: 17px; margin-top: 4px; }
+        .oferta:hover .etiqueta { transform: rotate(0deg) scale(1.04); }
+        .etiqueta .rs { font-size: 13px; margin: 5px 3px 0 0; }
+        .etiqueta .inteiro { font-size: 30px; letter-spacing: -0.04em; }
+        .etiqueta .centavos { font-size: 14px; margin-top: 3px; }
 
-        .acoes {
-            display: flex;
-            gap: 6px;
-            margin-top: auto;
-            padding-top: 6px;
-        }
+        .acoes { display: flex; gap: 6px; margin-top: auto; padding-top: 8px; }
         .comprar {
-            flex: 1;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            height: 40px;
-            padding: 0 6px;
-            border-radius: 10px;
-            background: var(--tinta);
-            color: #fff;
-            font-size: 13.5px;
-            font-weight: 600;
-            text-decoration: none;
-            white-space: nowrap;
-            overflow: hidden;
+            flex: 1; display: inline-flex; align-items: center; justify-content: center;
+            height: 42px; padding: 0 8px; border-radius: 999px;
+            background: var(--texto); color: var(--fundo);
+            font-size: 13.5px; font-weight: 600; text-decoration: none; white-space: nowrap; overflow: hidden;
         }
-        .comprar:hover { background: var(--tinta-clara); }
+        .comprar:hover { background: #fff; }
         .compartilhar {
-            width: 40px;
-            height: 40px;
-            flex: none;
-            display: grid;
-            place-items: center;
-            border: 0;
-            border-radius: 10px;
-            background: #EEF0F4;
+            width: 42px; height: 42px; flex: none; display: grid; place-items: center;
+            border: 0; border-radius: 50%; background: var(--superficie-3); color: var(--texto);
         }
-        .compartilhar:hover { background: #E2E6EE; }
-        .compartilhar svg { width: 18px; height: 18px; }
+        .compartilhar:hover { background: var(--superficie-4); }
+        .compartilhar svg { width: 17px; height: 17px; }
 
         /* Carregando */
         .esqueleto { pointer-events: none; }
-        .esqueleto .foto, .esqueleto .barra { background: #E6E9EF; animation: respirar 1.2s ease-in-out infinite alternate; }
+        .esqueleto .foto, .esqueleto .barra { background: var(--superficie-3); animation: respirar 1.2s ease-in-out infinite alternate; }
         .esqueleto .barra { height: 14px; border-radius: 6px; }
         @keyframes respirar { to { opacity: 0.45; } }
 
         /* Mais ofertas ao rolar */
-        .mais { display: flex; justify-content: center; padding: 8px 0 96px; }
+        .mais { display: flex; justify-content: center; padding: 8px 0 40px; }
         .mais-ofertas {
-            height: 48px;
-            padding: 0 22px;
-            border: 0;
-            border-radius: 999px;
-            background: var(--tinta);
-            color: #fff;
-            font-size: 15px;
-            font-weight: 700;
+            height: 50px; padding: 0 24px; border: 0; border-radius: 999px;
+            background: var(--superficie-3); color: var(--texto); font-size: 15px; font-weight: 600;
         }
-        .mais-ofertas:hover { background: var(--tinta-clara); }
+        .mais-ofertas:hover { background: var(--superficie-4); }
 
-        .vazio {
-            grid-column: 1 / -1;
-            padding: 48px 16px;
-            text-align: center;
-            color: var(--tinta-suave);
-        }
-        .vazio strong { display: block; color: var(--tinta); font-size: 18px; margin-bottom: 4px; }
+        .vazio { grid-column: 1 / -1; padding: 56px 16px; text-align: center; color: var(--texto-suave); }
+        .vazio strong { display: block; color: var(--texto); font-size: 20px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 6px; }
         .vazio button {
-            margin-top: 16px;
-            height: 42px;
-            padding: 0 18px;
-            border: 0;
-            border-radius: 10px;
-            background: var(--tinta);
-            color: #fff;
-            font-weight: 600;
+            margin-top: 18px; height: 44px; padding: 0 20px; border: 0; border-radius: 999px;
+            background: var(--texto); color: var(--fundo); font-weight: 600;
         }
 
         /* ---------- Janela do WhatsApp ---------- */
         .janela {
-            width: min(440px, calc(100% - 24px));
-            padding: 0;
-            border: 0;
-            border-radius: 18px;
-            color: var(--tinta);
-            background: var(--papel);
+            width: min(460px, calc(100% - 24px)); padding: 0; border: 0; border-radius: 28px;
+            color: var(--texto); background: var(--superficie-2);
+            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6);
         }
-        .janela::backdrop { background: rgba(18, 29, 53, 0.6); animation: escurecer var(--medio) var(--suave); }
-        .janela[open] { animation: surgir var(--medio) var(--suave); }
-        @keyframes surgir { from { opacity: 0; transform: translateY(16px) scale(0.97); } }
+        .janela::backdrop { background: rgba(0, 0, 0, 0.7); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: escurecer var(--medio) var(--suave); }
+        .janela[open] { animation: surgir 420ms var(--mola); }
+        @keyframes surgir { from { opacity: 0; transform: translateY(20px) scale(0.96); } }
         @keyframes escurecer { from { opacity: 0; } }
-        .janela .corpo { padding: 22px 20px 20px; }
-        .janela h2 {
-            margin: 0 40px 6px 0;
-            font-size: 22px;
-            line-height: 1.15;
-            letter-spacing: -0.02em;
-        }
-        .janela p { margin: 0 0 16px; font-size: 15px; color: var(--tinta-suave); }
+        .janela .corpo { padding: 26px 22px 22px; }
+        .janela h2 { margin: 0 44px 8px 0; font-size: 26px; font-weight: 600; line-height: 1.1; letter-spacing: -0.035em; }
+        .janela p { margin: 0 0 18px; font-size: 15px; color: var(--texto-suave); }
         .fechar {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            width: 36px;
-            height: 36px;
-            border: 0;
-            border-radius: 50%;
-            background: var(--fundo);
-            font-size: 20px;
-            line-height: 1;
+            position: absolute; top: 14px; right: 14px; width: 38px; height: 38px;
+            border: 0; border-radius: 50%; background: var(--superficie-3); font-size: 20px; line-height: 1;
         }
-        .opcoes-categorias {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin: 0 0 18px;
-            padding: 0;
-            border: 0;
-        }
+        .fechar:hover { background: var(--superficie-4); }
+        .opcoes-categorias { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 20px; padding: 0; border: 0; }
         .opcoes-categorias legend { font-weight: 600; font-size: 15px; margin-bottom: 10px; padding: 0; }
         .opcao input { position: absolute; opacity: 0; pointer-events: none; }
         .opcao span {
-            display: inline-flex;
-            align-items: center;
-            height: 40px;
-            padding: 0 16px;
-            border-radius: 999px;
-            background: #EEF0F4;
-            font-weight: 600;
-            cursor: pointer;
+            display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 999px;
+            background: var(--superficie-3); color: var(--texto-suave); font-weight: 500; cursor: pointer;
             transition: background-color var(--rapido) var(--suave), color var(--rapido) var(--suave);
         }
-        .opcao input:checked + span { background: var(--tinta); color: #fff; }
-        .opcao input:focus-visible + span { outline: 3px solid var(--etiqueta); outline-offset: 2px; }
+        .opcao input:checked + span { background: var(--texto); color: var(--fundo); }
+        .opcao input:focus-visible + span { outline: 2px solid var(--roxo-claro); outline-offset: 2px; }
         .abrir-whatsapp {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            width: 100%;
-            height: 50px;
-            border-radius: 12px;
-            background: var(--whatsapp);
-            color: #fff;
-            font-size: 16px;
-            font-weight: 600;
-            text-decoration: none;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            width: 100%; height: 52px; border-radius: 999px;
+            background: var(--verde); color: #04170C; font-size: 16px; font-weight: 600; text-decoration: none;
         }
+        .abrir-whatsapp:hover { background: #3BE07A; }
         .abrir-whatsapp svg { width: 20px; height: 20px; }
-        .nota { margin: 12px 0 0 !important; font-size: 13.5px !important; text-align: center; }
-        .nota a { color: var(--tinta); font-weight: 600; }
+        .nota { margin: 14px 0 0 !important; font-size: 13.5px !important; text-align: center; }
+        .nota a { color: var(--texto); font-weight: 600; }
+
+        /* ---------- Feedback: barra que vira uma caixinha ---------- */
+        .feedback-secao { padding: 96px 0 40px; text-align: center; }
+        .feedback-secao .titulo-secao { margin: 0 auto; max-width: 14ch; }
+        .feedback-secao .apoio { margin: 16px auto 40px; max-width: 44ch; color: var(--texto-suave); font-size: 16px; }
+        .morph-lugar { display: flex; justify-content: center; min-height: 260px; }
+        .morph {
+            position: relative;
+            width: min(360px, 100%); height: 52px;
+            border-radius: 26px;
+            background: var(--superficie-2);
+            box-shadow: inset 0 0 0 1px var(--linha-forte), 0 20px 50px rgba(0, 0, 0, 0.35);
+            overflow: hidden;
+            text-align: left;
+            transition: width 520ms var(--mola), height 520ms var(--mola), border-radius 520ms var(--mola);
+        }
+        .morph.aberto { width: min(420px, 100%); height: 248px; border-radius: 24px; }
+        .morph-barra, .morph-caixa, .morph-obrigado {
+            position: absolute; inset: 0;
+            transition: opacity 260ms var(--suave), transform 420ms var(--mola), filter 260ms var(--suave);
+        }
+        .morph-barra {
+            display: flex; align-items: center; justify-content: center; gap: 12px;
+            width: 100%; padding: 0 22px; border: 0; background: none;
+            font-size: 15px; font-weight: 500; color: var(--texto);
+        }
+        .morph-barra:hover .morph-acao { color: var(--texto); }
+        .morph-ponto {
+            width: 20px; height: 20px; flex: none; border-radius: 50%; background: var(--texto);
+            transition: transform var(--medio) var(--mola);
+        }
+        .morph-barra:hover .morph-ponto { transform: scale(1.15); }
+        .morph-acao { margin-left: 16px; color: var(--texto-suave); transition: color var(--rapido) var(--suave); }
+        .morph-caixa { display: flex; flex-direction: column; padding: 6px; margin: 0; }
+        .morph-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 38px; padding: 0 6px 0 10px; }
+        .morph-titulo { display: inline-flex; align-items: center; gap: 8px; font-size: 14.5px; color: var(--texto-suave); }
+        .morph-titulo .morph-ponto { width: 9px; height: 9px; }
+        .morph-atalho { display: inline-flex; gap: 4px; }
+        @media (hover: none) { .morph-atalho { display: none; } }
+        .morph-atalho kbd {
+            display: inline-grid; place-items: center; min-width: 26px; height: 24px; padding: 0 7px; border-radius: 7px;
+            background: var(--superficie-3); box-shadow: inset 0 0 0 1px var(--linha-forte);
+            font: 500 12px var(--fonte); color: var(--texto-suave);
+        }
+        .morph-campo {
+            flex: 1; display: flex; flex-direction: column;
+            border-radius: 18px; background: var(--superficie-3);
+            box-shadow: inset 0 0 0 1px var(--linha);
+            overflow: hidden;
+        }
+        .morph-campo textarea {
+            flex: 1; width: 100%; padding: 14px 16px 6px;
+            border: 0; outline: none; resize: none; background: none; color: var(--texto);
+            font: 16px/1.45 var(--fonte);
+        }
+        .morph-campo textarea::placeholder { color: var(--texto-fraco); }
+        .morph-rodape { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 16px; }
+        .morph-rodape input {
+            flex: 1; min-width: 0; height: 34px; border: 0; outline: none; background: none;
+            color: var(--texto); font: 14px var(--fonte);
+        }
+        .morph-rodape input::placeholder { color: var(--texto-fraco); }
+        .morph-enviar {
+            flex: none; height: 36px; padding: 0 16px; border: 0; border-radius: 999px;
+            background: var(--texto); color: var(--fundo); font-size: 14px; font-weight: 600;
+        }
+        .morph-enviar:hover { background: #fff; }
+        .morph-enviar:disabled { opacity: 0.5; cursor: default; }
+        .morph-erro { margin: 0; padding: 0 16px 8px; font-size: 13px; color: var(--vermelho); }
+        .morph-erro:empty { display: none; }
+        .armadilha { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+        .morph-obrigado {
+            display: grid; place-items: center; align-content: center; gap: 10px; padding: 20px;
+            text-align: center; font-size: 15px; color: var(--texto-suave);
+        }
+        .morph-obrigado strong { display: block; font-size: 22px; font-weight: 600; letter-spacing: -0.03em; color: var(--texto); }
+        .morph-obrigado .visto {
+            width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+            background: var(--verde); color: #04170C;
+        }
+        .morph-obrigado .visto svg { width: 22px; height: 22px; }
+        .morph-obrigado .visto path { stroke-dasharray: 24; stroke-dashoffset: 24; }
+        .morph.enviado .morph-obrigado .visto path { stroke-dashoffset: 0; transition: stroke-dashoffset 500ms var(--suave) 200ms; }
+        /* Estados: só a parte certa fica visível */
+        .morph:not(.aberto) .morph-caixa,
+        .morph:not(.enviado) .morph-obrigado { opacity: 0; transform: scale(0.96) translateY(6px); filter: blur(4px); pointer-events: none; visibility: hidden; }
+        .morph.aberto .morph-barra { opacity: 0; transform: scale(0.9); filter: blur(4px); pointer-events: none; visibility: hidden; }
+        .morph.enviado .morph-caixa { opacity: 0; transform: scale(0.96); filter: blur(4px); pointer-events: none; visibility: hidden; }
+        .morph.aberto .morph-caixa { transition-delay: 120ms; }
+        .morph-barra, .morph-caixa, .morph-obrigado { transition-property: opacity, transform, filter, visibility; }
 
         /* ---------- Rodapé ---------- */
-        .rodape {
-            margin-top: auto;
-            background: var(--tinta);
-            color: #C9D1E3;
-            font-size: 14px;
-            padding: 28px 0;
-        }
-        .rodape p { margin: 0 0 6px; max-width: 70ch; }
-        .rodape strong { color: #fff; }
+        .rodape { overflow: hidden; margin-top: auto; padding: 48px 0 28px; background: var(--superficie); color: var(--texto-suave); font-size: 14px; border-radius: 32px 32px 0 0; }
+        .rodape-grade { display: grid; gap: 18px; }
+        .rodape p { margin: 0; max-width: 62ch; }
+        .rodape strong { color: var(--texto); font-weight: 600; }
         .rodape .nome-grande {
-            margin: 18px 0 0;
-            font-size: clamp(40px, 10vw, 120px);
-            font-weight: 800;
-            line-height: 0.9;
-            letter-spacing: -0.045em;
-            color: #fff;
+            margin: 40px 0 0;
+            font-size: min(12.4vw, 168px); font-weight: 600; line-height: 0.9; letter-spacing: -0.06em;
+            color: var(--texto); white-space: nowrap; max-width: none;
         }
+        .rodape .nome-grande em { color: var(--roxo-claro); }
 
         .aviso {
-            position: fixed;
-            left: 50%;
-            bottom: 84px;
-            transform: translate(-50%, 20px);
-            opacity: 0;
-            padding: 12px 18px;
-            border-radius: 12px;
-            background: var(--tinta);
-            color: #fff;
-            font-size: 15px;
-            font-weight: 600;
-            transition: opacity 0.2s, transform 0.2s;
-            pointer-events: none;
-            z-index: 30;
+            position: fixed; left: 50%; bottom: 84px; z-index: 30;
+            transform: translate(-50%, 20px); opacity: 0;
+            padding: 12px 20px; border-radius: 999px;
+            background: var(--texto); color: var(--fundo); font-size: 15px; font-weight: 600;
+            transition: opacity 0.2s, transform 0.3s var(--mola); pointer-events: none;
         }
         .aviso.visivel { opacity: 1; transform: translate(-50%, 0); }
 
         /* ---------- Telas maiores ---------- */
         @media (min-width: 640px) {
-            .so-tela-grande { display: inline; }
-            .marca { font-size: 20px; }
-            .abertura { padding: 24px 0 0; }
-            .abertura p { font-size: 17px; }
-            .loja { font-size: 18px; min-height: 72px; padding: 12px 16px; }
+            .marca { font-size: 19px; }
+            .abertura { padding: 56px 0 0; }
+            .loja { font-size: 17px; min-height: 84px; padding: 14px 18px; }
             .lojas { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-            .vitrine { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-            .oferta .titulo { font-size: 15px; }
-            .oferta .info { padding: 12px; }
-            .comprar { font-size: 14px; height: 42px; }
-            .compartilhar { width: 42px; height: 42px; }
+            .vitrine { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+            .oferta .titulo { font-size: 14.5px; }
+            .oferta .info { padding: 14px 10px 8px; }
+            .grupo-promo { padding: 40px 36px; }
+            .rodape-grade { grid-template-columns: 1fr 1.6fr; gap: 40px; }
         }
         @media (min-width: 760px) {
-            .grupo-promo {
-                grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
-                align-items: center;
-                gap: 32px;
-                padding: 32px;
-            }
+            .grupo-promo { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: center; gap: 40px; padding: 48px; border-radius: 36px; }
             .botao-grupo { width: auto; }
-            .link-privado { margin: 12px 0 0; }
+            .grupo-texto h2 { font-size: clamp(38px, 5.4vw, 64px); }
+            .link-privado { margin: 14px 0 0; }
         }
         @media (min-width: 960px) {
-            .abertura h1 { max-width: 15ch; font-size: clamp(48px, 5.4vw, 76px); }
-            .abertura-grade { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 40px; }
+            .abertura { padding: 72px 0 0; }
+            .abertura h1 { font-size: clamp(72px, 6.4vw, 100px); max-width: 11ch; }
+            .abertura-grade { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 48px; }
             .radar { display: block; }
-            .vitrine { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
-            .filtros { grid-template-columns: minmax(0, 1fr); }
+            .vitrine { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
             .ordenar { max-width: none; }
-            .oferta .info { padding: 14px; }
-            .etiqueta .inteiro { font-size: 40px; }
+            .etiqueta .inteiro { font-size: 34px; }
+            .cabeca-vitrine { padding-top: 104px; }
         }
 
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { animation: none !important; transition: none !important; }
-            .js .entra { opacity: 1; transform: none; }
+            .js .entra, .js .revela .palavra { opacity: 1; transform: none; filter: none; }
             .radar .ponto { opacity: 1; transform: none; }
             .trilho { overflow-x: auto; }
             .js .flutuante:not(.visivel) { opacity: 1; transform: none; pointer-events: auto; }
+            .faixa-cinetica .trilho-faixa { justify-content: center; }
         }
     </style>
 </head>
@@ -1009,13 +766,13 @@
         <div class="container">
             <a class="marca" href="/">
                 <svg viewBox="0 0 32 32" aria-hidden="true">
-                    <circle cx="16" cy="16" r="14" fill="#FFFFFF" opacity=".12"/>
-                    <circle cx="16" cy="16" r="9" fill="none" stroke="#FFFFFF" stroke-width="1.5" opacity=".35"/>
-                    <circle cx="16" cy="16" r="4.5" fill="none" stroke="#FFFFFF" stroke-width="1.5" opacity=".35"/>
-                    <g class="varredura"><path d="M16 16 L16 2 A14 14 0 0 1 28.1 9 Z" fill="#FFD60A" opacity=".9"/></g>
-                    <circle cx="22" cy="11" r="2" fill="#EE4D2D"/>
+                    <circle cx="16" cy="16" r="15" fill="#8B6CFF"/>
+                    <circle cx="16" cy="16" r="9" fill="none" stroke="#0A0A0B" stroke-width="1.5" opacity=".35"/>
+                    <g class="varredura"><path d="M16 16 L16 1 A15 15 0 0 1 29 8.5 Z" fill="#0A0A0B" opacity=".35"/></g>
+                    <circle cx="16" cy="16" r="2.4" fill="#0A0A0B"/>
+                    <circle cx="22" cy="10.5" r="2.2" fill="#FFD60A"/>
                 </svg>
-                <span>Radar de Ofertas</span>
+                <span>Radar <em>de</em> Ofertas</span>
             </a>
 
             <div class="topo-acoes">
@@ -1043,44 +800,54 @@
     <section class="abertura">
         <div class="container abertura-grade">
             <div>
-                <h1 class="entra" style="--atraso: 0ms">O radar das melhores ofertas</h1>
-                <p class="entra" style="--atraso: 90ms">Promoções da Amazon, Shopee, Mercado Livre e AliExpress, conferidas a cada 5 minutos. Cada oferta fica no ar por até {{ horas_validade }} horas: quem chega primeiro aproveita.</p>
+                <h1 class="revela">O radar das <em>melhores</em> ofertas</h1>
+                <p class="apoio entra" style="--atraso: 380ms">Promoções da Amazon, Shopee, Mercado Livre e AliExpress, conferidas a cada 5 minutos. Cada oferta fica no ar por até {{ horas_validade }} horas: quem chega primeiro aproveita.</p>
 
                 <div class="lojas" role="group" aria-label="Filtrar por loja">
                     {% for chave, nome in lojas.items() %}
-                    <button type="button" class="loja entra" style="--atraso: {{ 180 + loop.index0 * 70 }}ms" data-loja="{{ chave }}" aria-pressed="false" onclick="escolherLoja(this.dataset.loja)">
+                    <button type="button" class="loja entra" style="--atraso: {{ 460 + loop.index0 * 70 }}ms" data-loja="{{ chave }}" aria-pressed="false" onclick="escolherLoja(this.dataset.loja)">
                         {{ nome }}
                         <small id="total-{{ chave }}">…</small>
                     </button>
                     {% endfor %}
                 </div>
 
-                <div class="atualizado entra" style="--atraso: 480ms"><span class="ponto-ao-vivo" aria-hidden="true"></span><span id="atualizado" aria-live="polite">Buscando ofertas…</span></div>
+                <div class="atualizado entra" style="--atraso: 760ms"><span class="ponto-ao-vivo" aria-hidden="true"></span><span id="atualizado" aria-live="polite">Buscando ofertas…</span></div>
             </div>
 
             <div class="radar" id="radar" aria-label="Ofertas que acabaram de chegar">
                 <svg class="fundo-radar" viewBox="0 0 400 400" aria-hidden="true">
-                    <circle cx="200" cy="200" r="198" fill="#22345A"/>
-                    <circle cx="200" cy="200" r="140" fill="#263B65"/>
-                    <circle cx="200" cy="200" r="82" fill="#2B4270"/>
-                    <g class="feixe"><path d="M200 200 L200 2 A198 198 0 0 0 48.3 72.8 Z" fill="#FFFFFF" opacity=".1"/></g>
-                    <circle cx="200" cy="200" r="7" fill="#FFD60A"/>
+                    <circle cx="200" cy="200" r="199" fill="#100E18"/>
+                    <circle cx="200" cy="200" r="140" fill="#15122A"/>
+                    <circle cx="200" cy="200" r="82" fill="#1C1739"/>
+                    <circle cx="200" cy="200" r="140" fill="none" stroke="#8B6CFF" stroke-opacity=".18"/>
+                    <circle cx="200" cy="200" r="82" fill="none" stroke="#8B6CFF" stroke-opacity=".22"/>
+                    <path d="M200 1 V399 M1 200 H399" stroke="#8B6CFF" stroke-opacity=".1"/>
+                    <g class="feixe"><path d="M200 200 L200 1 A199 199 0 0 0 47.6 72 Z" fill="#8B6CFF" opacity=".22"/><path d="M200 200 L200 1" stroke="#BBA9FF" stroke-width="2" opacity=".8"/></g>
+                    <circle cx="200" cy="200" r="7" fill="#BBA9FF"/>
                 </svg>
             </div>
         </div>
 
+        <div class="faixa-envolve"><div class="faixa-cinetica" aria-hidden="true">
+            <div class="trilho-faixa">
+                {% for _ in range(2) %}<span>Amazon <i>✦</i> <em>Shopee</em> <i>✦</i> Mercado Livre <i>✦</i> <em>AliExpress</em> <i>✦</i> Link direto <i>✦</i> <em>a cada 5 minutos</em> <i>✦</i></span>{% endfor %}
+            </div>
+        </div></div>
+
         <section class="chegaram" aria-labelledby="titulo-chegaram">
             <div class="container">
-                <h2 id="titulo-chegaram"><span class="ponto-ao-vivo" aria-hidden="true"></span>Acabou de cair no radar</h2>
+                <h2 id="titulo-chegaram" class="sobretitulo"><span class="ponto-ao-vivo" aria-hidden="true"></span>Acabou de cair no radar</h2>
             </div>
             <div class="trilho"><div class="trilho-faixa" id="trilho"></div></div>
         </section>
     </section>
-    <div class="faixa-lojas" aria-hidden="true">
-        <span style="background: var(--amazon)"></span><span style="background: var(--shopee)"></span><span style="background: var(--mercadolivre)"></span><span style="background: var(--aliexpress-texto)"></span>
-    </div>
 
     <main class="container">
+        <div class="cabeca-vitrine">
+            <p class="sobretitulo">Vitrine</p>
+            <h2 class="titulo-secao revela">Todas as <em>ofertas</em> no ar</h2>
+        </div>
         <div class="filtros">
             <div class="linha-busca">
                 <label class="busca">
@@ -1109,12 +876,54 @@
         <div class="mais" id="mais"><button type="button" class="mais-ofertas" id="mais-ofertas" hidden onclick="mostrarMais()">Mostrar mais ofertas</button></div>
     </main>
 
+    <section class="feedback-secao" aria-labelledby="titulo-feedback">
+        <div class="container">
+            <p class="sobretitulo">Sua opinião</p>
+            <h2 class="titulo-secao revela" id="titulo-feedback">Ajude a deixar o radar <em>melhor</em></h2>
+            <p class="apoio">Achou um preço errado, sentiu falta de algum produto ou teve uma ideia? Conta pra gente: lemos todas as mensagens.</p>
+            <div class="morph-lugar">
+                <div class="morph" id="feedback">
+                    <button type="button" class="morph-barra" id="feedback-abrir" aria-expanded="false" aria-controls="feedback-caixa" onclick="abrirFeedback()">
+                        <span class="morph-ponto" aria-hidden="true"></span>
+                        <span>Radar de Ofertas</span>
+                        <span class="morph-acao">Feedback</span>
+                    </button>
+                    <form class="morph-caixa" id="feedback-caixa" onsubmit="enviarFeedback(event)" novalidate>
+                        <div class="morph-topo">
+                            <span class="morph-titulo"><span class="morph-ponto" aria-hidden="true"></span>Feedback</span>
+                            <span class="morph-atalho" aria-hidden="true"><kbd id="tecla-atalho">Ctrl</kbd><kbd>Enter</kbd></span>
+                        </div>
+                        <div class="morph-campo">
+                            <label class="oculto-visualmente" for="feedback-texto">Seu comentário</label>
+                            <textarea id="feedback-texto" name="texto" maxlength="1000" placeholder="O que você está achando?" onkeydown="atalhoFeedback(event)"></textarea>
+                            <input type="text" name="site" class="armadilha" tabindex="-1" autocomplete="off" aria-hidden="true">
+                            <p class="morph-erro" id="feedback-erro" role="alert"></p>
+                            <div class="morph-rodape">
+                                <label class="oculto-visualmente" for="feedback-contato">Seu contato (opcional)</label>
+                                <input type="text" id="feedback-contato" name="contato" maxlength="80" placeholder="WhatsApp ou e-mail (opcional)" autocomplete="tel" onkeydown="atalhoFeedback(event)">
+                                <button type="submit" class="morph-enviar" id="feedback-enviar">Enviar</button>
+                            </div>
+                        </div>
+                    </form>
+                    <div class="morph-obrigado" role="status">
+                        <span class="visto" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17 19 7"/></svg></span>
+                        <span><strong>Recebido!</strong>Obrigado por ajudar o Radar.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <footer class="rodape">
         <div class="container">
-            <p><strong>Radar de Ofertas</strong></p>
-            <p>Os preços podem mudar nas lojas a qualquer momento. Confira o valor final antes de comprar.</p>
-            <p>Participamos dos programas de afiliados da Amazon, Shopee, Mercado Livre e AliExpress: podemos receber uma comissão pelas compras feitas pelos nossos links, sem custo extra para você.</p>
-            <p class="nome-grande" aria-hidden="true">Radar de Ofertas</p>
+            <div class="rodape-grade">
+                <p><strong>Radar de Ofertas</strong><br>Promoções da Amazon, Shopee, Mercado Livre e AliExpress, com link direto para o produto.</p>
+                <div style="display:grid;gap:10px">
+                    <p>Os preços podem mudar nas lojas a qualquer momento. Confira o valor final antes de comprar.</p>
+                    <p>Participamos dos programas de afiliados da Amazon, Shopee, Mercado Livre e AliExpress: podemos receber uma comissão pelas compras feitas pelos nossos links, sem custo extra para você.</p>
+                </div>
+            </div>
+            <p class="nome-grande" aria-hidden="true">Radar <em>de</em> Ofertas</p>
         </div>
     </footer>
 
@@ -1164,7 +973,7 @@
             </div>
             <div class="conversa" aria-hidden="true">
                 <div class="conversa-topo">
-                    <span class="avatar"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="#1B2A4A"/><path d="M16 16 L16 3 A13 13 0 0 1 27.3 9.5 Z" fill="#FFD60A"/><circle cx="21.5" cy="11" r="2" fill="#EE4D2D"/></svg></span>
+                    <span class="avatar"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="#8B6CFF"/><path d="M16 16 L16 3 A13 13 0 0 1 27.3 9.5 Z" fill="#0A0A0B" opacity=".35"/><circle cx="21.5" cy="11" r="2.2" fill="#FFD60A"/></svg></span>
                     <div><strong>Radar de Ofertas</strong><small>grupo de promoções</small></div>
                 </div>
                 <div class="conversa-corpo">
@@ -1767,6 +1576,107 @@
                 .replace(/'/g, '&#39;');
         }
 
+        // ---------- Títulos que sobem palavra por palavra ----------
+        function prepararTitulos() {
+            document.querySelectorAll('.revela').forEach(titulo => {
+                const partes = [];
+                titulo.childNodes.forEach(no => {
+                    if (no.nodeType === Node.TEXT_NODE) {
+                        no.textContent.split(/(\s+)/).forEach(pedaco => {
+                            if (!pedaco) return;
+                            partes.push(/^\s+$/.test(pedaco) ? document.createTextNode(pedaco) : pedaco);
+                        });
+                    } else {
+                        partes.push(no.cloneNode(true));
+                    }
+                });
+                titulo.setAttribute('aria-label', titulo.textContent.replace(/\s+/g, ' ').trim());
+                titulo.textContent = '';
+                let i = 0;
+                partes.forEach(parte => {
+                    if (parte instanceof Node && parte.nodeType === Node.TEXT_NODE) { titulo.appendChild(parte); return; }
+                    const palavra = document.createElement('span');
+                    palavra.className = 'palavra';
+                    palavra.setAttribute('aria-hidden', 'true');
+                    palavra.style.setProperty('--i', i++);
+                    if (typeof parte === 'string') palavra.textContent = parte; else palavra.appendChild(parte);
+                    titulo.appendChild(palavra);
+                });
+                observar(titulo);
+            });
+        }
+
+        // ---------- Feedback: a barra vira uma caixinha ----------
+        const caixaFeedback = () => document.getElementById('feedback');
+
+        function abrirFeedback() {
+            const morph = caixaFeedback();
+            morph.classList.remove('enviado');
+            morph.classList.add('aberto');
+            document.getElementById('feedback-abrir').setAttribute('aria-expanded', 'true');
+            // Espera a caixa começar a crescer para pôr o cursor no texto (sem rolar a página)
+            setTimeout(() => document.getElementById('feedback-texto').focus({ preventScroll: true }), reduzMovimento ? 0 : 180);
+        }
+
+        function fecharFeedback(devolverFoco = true) {
+            const morph = caixaFeedback();
+            if (!morph.classList.contains('aberto')) return;
+            morph.classList.remove('aberto', 'enviado');
+            document.getElementById('feedback-abrir').setAttribute('aria-expanded', 'false');
+            document.getElementById('feedback-erro').textContent = '';
+            // A barra volta a ficar visível no quadro seguinte; só então recebe o foco
+            if (devolverFoco) setTimeout(() => document.getElementById('feedback-abrir').focus({ preventScroll: true }), 40);
+        }
+
+        function atalhoFeedback(evento) {
+            if (evento.key === 'Enter' && (evento.metaKey || evento.ctrlKey)) {
+                evento.preventDefault();
+                document.getElementById('feedback-caixa').requestSubmit();
+            } else if (evento.key === 'Escape') {
+                fecharFeedback();
+            }
+        }
+
+        async function enviarFeedback(evento) {
+            evento.preventDefault();
+            const formulario = evento.target;
+            const erro = document.getElementById('feedback-erro');
+            const botao = document.getElementById('feedback-enviar');
+            const texto = formulario.texto.value.trim();
+            if (texto.length < 3) {
+                erro.textContent = 'Escreva sua mensagem antes de enviar.';
+                formulario.texto.focus();
+                return;
+            }
+            erro.textContent = '';
+            botao.disabled = true;
+            botao.textContent = 'Enviando…';
+            try {
+                const resposta = await fetch('/api/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ texto, contato: formulario.contato.value.trim(), site: formulario.site.value }),
+                });
+                const dados = await resposta.json().catch(() => ({}));
+                if (!resposta.ok) throw new Error(dados.mensagem || 'Não foi possível enviar agora. Tente de novo.');
+                formulario.reset();
+                caixaFeedback().classList.add('enviado');
+                setTimeout(() => fecharFeedback(false), 2600);
+            } catch (e) {
+                erro.textContent = e.message || 'Não foi possível enviar agora. Tente de novo.';
+            } finally {
+                botao.disabled = false;
+                botao.textContent = 'Enviar';
+            }
+        }
+
+        // Clicar fora fecha a caixinha (se não tiver nada escrito)
+        document.addEventListener('pointerdown', evento => {
+            const morph = caixaFeedback();
+            if (!morph || !morph.classList.contains('aberto') || morph.contains(evento.target)) return;
+            if (!document.getElementById('feedback-texto').value.trim()) fecharFeedback(false);
+        });
+
         function mostrarCarregando() {
             const cartao = `
                 <div class="oferta esqueleto" aria-hidden="true">
@@ -1782,7 +1692,17 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             // Abertura: título, texto e lojas entram em sequência
-            document.querySelectorAll('.abertura .entra').forEach(el => el.classList.add('visivel'));
+            prepararTitulos();
+            document.querySelectorAll('.abertura .entra, .abertura .revela').forEach(el => el.classList.add('visivel'));
+
+            // Atalho mostrado na caixinha de feedback: ⌘ no Mac e no iPhone, Ctrl no resto
+            if (/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)) document.getElementById('tecla-atalho').textContent = '⌘';
+
+            // Linha fina embaixo do topo só depois que a página rola
+            const topo = document.querySelector('.topo');
+            const marcarTopo = () => topo.classList.toggle('rolou', scrollY > 8);
+            addEventListener('scroll', marcarTopo, { passive: true });
+            marcarTopo();
 
             // Chega perto do fim da vitrine: mostra mais ofertas sozinho
             if ('IntersectionObserver' in window) {
