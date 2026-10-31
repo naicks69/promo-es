@@ -151,6 +151,24 @@ Para parar de postar em um grupo, escreva **`!desativar`** nele.
 - `SAIR`, `PARAR` ou `CANCELAR`: cancela a inscrição
 - qualquer outra mensagem: responde com o menu e o link do grupo
 
+### Botão flutuante (WhatsApp e Instagram)
+
+No canto inferior direito do site há um botão **+** que abre um painel com duas abas:
+WhatsApp (entrar no grupo de ofertas) e Instagram (seguir o perfil). Para a aba do
+Instagram ter o botão "Seguir", cadastre no Render (Environment):
+
+```
+INSTAGRAM_URL=https://www.instagram.com/seu_perfil
+```
+
+Sem ela, a aba mostra "Em breve".
+
+### Carrinho do cliente
+
+A sacola de cada oferta guarda o produto no **carrinho** (painel à direita, botão
+"Carrinho" no topo). Ele fica salvo no aparelho do cliente, mostra quando o preço
+baixou ou a oferta saiu do ar, e cada item abre a loja pelo link de afiliado.
+
 ### Feedback dos clientes
 
 No fim do site há uma barra **Feedback**: ao clicar, ela vira uma caixinha para o
