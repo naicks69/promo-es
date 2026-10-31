@@ -614,8 +614,12 @@
         .feedback-secao { padding: 96px 0 40px; text-align: center; }
         .feedback-secao .titulo-secao { margin: 0 auto; max-width: 14ch; }
         .feedback-secao .apoio { margin: 16px auto 40px; max-width: 44ch; color: var(--texto-suave); font-size: 16px; }
-        .morph-lugar { display: flex; justify-content: center; min-height: 260px; }
+        .morph-lugar { display: flex; justify-content: center; min-height: 260px; container-type: inline-size; }
+        /* A barra cresce com efeito de mola (leve passada do ponto e volta) */
         .morph {
+            --mola-morph: cubic-bezier(0.32, 0.72, 0, 1);
+            --duracao-morph: 650ms;
+            --largura-aberta: min(420px, 100cqw);
             position: relative;
             width: min(360px, 100%); height: 52px;
             border-radius: 26px;
@@ -623,26 +627,61 @@
             box-shadow: inset 0 0 0 1px var(--linha-forte), 0 20px 50px rgba(0, 0, 0, 0.35);
             overflow: hidden;
             text-align: left;
-            transition: width 520ms var(--mola), height 520ms var(--mola), border-radius 520ms var(--mola);
+            /* Ao fechar, o conteúdo some primeiro e só depois a caixa encolhe */
+            transition: width var(--duracao-morph) var(--mola-morph) 90ms, height var(--duracao-morph) var(--mola-morph) 90ms,
+                        border-radius var(--duracao-morph) var(--mola-morph) 90ms;
         }
-        .morph.aberto { width: min(420px, 100%); height: 248px; border-radius: 24px; }
-        .morph-barra, .morph-caixa, .morph-obrigado {
-            position: absolute; inset: 0;
-            transition: opacity 260ms var(--suave), transform 420ms var(--mola), filter 260ms var(--suave);
+        @supports (transition-timing-function: linear(0, 1)) {
+            .morph { --mola-morph: linear(0, 0.0284, 0.1008, 0.2006, 0.3143, 0.4318, 0.5456, 0.6508, 0.7442, 0.8242, 0.8903, 0.9431, 0.9836, 1.0132, 1.0335, 1.0461, 1.0525, 1.0543, 1.0526, 1.0486, 1.0431, 1.0369, 1.0305, 1.0244, 1.0187, 1.0137, 1.0093, 1.0058, 1.003, 1.0008, 0.9992, 0.9981, 0.9975, 0.9971, 0.9971, 0.9972, 1); }
         }
+        .morph.aberto { width: var(--largura-aberta); height: 248px; border-radius: 24px; transition-delay: 0ms; }
+
+        /* A bolinha "voa" da barra até o cabeçalho da caixa */
+        .morph-voador {
+            position: absolute; left: 0; top: 0; z-index: 2;
+            width: var(--tam, 20px); height: var(--tam, 20px); border-radius: 50%;
+            background: var(--texto);
+            transform: translate(var(--x, 0px), var(--y, 16px));
+            pointer-events: none;
+            transition: transform var(--duracao-morph) var(--mola-morph), width var(--duracao-morph) var(--mola-morph),
+                        height var(--duracao-morph) var(--mola-morph), opacity 200ms var(--suave);
+        }
+        .morph.sem-transicao .morph-voador { transition: none; }
+        .morph.enviado .morph-voador { opacity: 0; }
+        html:not(.js) .morph-voador { display: none; }
+        .morph-ponto { width: 20px; height: 20px; flex: none; border-radius: 50%; background: var(--texto); }
+        .js .morph .morph-ponto { visibility: hidden; } /* só marcam o lugar; quem aparece é a bolinha que voa */
+
+        /* Barra fechada */
         .morph-barra {
-            display: flex; align-items: center; justify-content: center; gap: 12px;
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
             width: 100%; padding: 0 22px; border: 0; background: none;
             font-size: 15px; font-weight: 500; color: var(--texto);
+            transition: visibility 0s;
         }
+        .morph-barra-conteudo { display: inline-flex; align-items: center; gap: 12px; white-space: nowrap; }
+        .morph-rotulo, .morph-acao {
+            transition: opacity 260ms var(--suave) 200ms, filter 260ms var(--suave) 200ms,
+                        transform 520ms var(--mola) 200ms, color var(--rapido) var(--suave);
+        }
+        .morph-acao { margin-left: 16px; color: var(--texto-suave); }
         .morph-barra:hover .morph-acao { color: var(--texto); }
-        .morph-ponto {
-            width: 20px; height: 20px; flex: none; border-radius: 50%; background: var(--texto);
-            transition: transform var(--medio) var(--mola);
+        .morph.aberto .morph-barra { visibility: hidden; pointer-events: none; transition: visibility 0s 200ms; }
+        .morph.aberto .morph-rotulo, .morph.aberto .morph-acao {
+            opacity: 0; filter: blur(4px); transform: translateY(-8px);
+            transition-duration: 140ms; transition-delay: 0ms;
         }
-        .morph-barra:hover .morph-ponto { transform: scale(1.15); }
-        .morph-acao { margin-left: 16px; color: var(--texto-suave); transition: color var(--rapido) var(--suave); }
-        .morph-caixa { display: flex; flex-direction: column; padding: 6px; margin: 0; }
+
+        /* Caixa aberta: tamanho final fixo, revelada à medida que a barra cresce */
+        .morph-caixa {
+            position: absolute; left: 0; top: 0;
+            width: var(--largura-aberta); height: 248px;
+            display: flex; flex-direction: column; padding: 6px; margin: 0;
+            visibility: hidden;
+            transition: visibility 0s 420ms;
+        }
+        .morph.aberto .morph-caixa { visibility: visible; transition-delay: 0s; }
         .morph-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 38px; padding: 0 6px 0 10px; }
         .morph-titulo { display: inline-flex; align-items: center; gap: 8px; font-size: 14.5px; color: var(--texto-suave); }
         .morph-titulo .morph-ponto { width: 9px; height: 9px; }
@@ -653,12 +692,44 @@
             background: var(--superficie-3); box-shadow: inset 0 0 0 1px var(--linha-forte);
             font: 500 12px var(--fonte); color: var(--texto-suave);
         }
+        /* Título e teclas entram deslizando, um depois do outro */
+        .morph-titulo-texto, .morph-atalho kbd {
+            opacity: 0; filter: blur(3px); transform: translateX(-10px);
+            transition: opacity 140ms var(--suave), filter 140ms var(--suave), transform 200ms var(--suave);
+        }
+        .morph-atalho kbd { transform: translateY(-6px) scale(0.9); }
+        .morph.aberto .morph-titulo-texto, .morph.aberto .morph-atalho kbd {
+            opacity: 1; filter: none; transform: none;
+            transition: opacity 320ms var(--suave) var(--atraso-morph, 170ms), filter 320ms var(--suave) var(--atraso-morph, 170ms),
+                        transform 560ms var(--mola) var(--atraso-morph, 170ms);
+        }
+        .morph-atalho kbd:nth-child(1) { --atraso-morph: 230ms; }
+        .morph-atalho kbd:nth-child(2) { --atraso-morph: 280ms; }
+
+        /* O quadrado de texto se forma a partir do centro */
         .morph-campo {
             flex: 1; display: flex; flex-direction: column;
             border-radius: 18px; background: var(--superficie-3);
             box-shadow: inset 0 0 0 1px var(--linha);
             overflow: hidden;
+            clip-path: inset(44% 36% 44% 36% round 18px);
+            opacity: 0;
+            transition: clip-path 240ms var(--suave), opacity 180ms var(--suave) 60ms;
         }
+        .morph.aberto .morph-campo {
+            clip-path: inset(0 round 18px);
+            opacity: 1;
+            transition: clip-path 700ms var(--mola-morph) 120ms, opacity 160ms var(--suave) 120ms;
+        }
+        .morph-campo > textarea, .morph-campo > .morph-rodape {
+            opacity: 0; transform: translateY(8px);
+            transition: opacity 120ms var(--suave), transform 200ms var(--suave);
+        }
+        .morph.aberto .morph-campo > textarea, .morph.aberto .morph-campo > .morph-rodape {
+            opacity: 1; transform: none;
+            transition: opacity 320ms var(--suave) var(--atraso-morph, 320ms), transform 560ms var(--mola) var(--atraso-morph, 320ms);
+        }
+        .morph-campo > .morph-rodape { --atraso-morph: 390ms; }
         .morph-campo textarea {
             flex: 1; width: 100%; padding: 14px 16px 6px;
             border: 0; outline: none; resize: none; background: none; color: var(--texto);
@@ -680,9 +751,22 @@
         .morph-erro { margin: 0; padding: 0 16px 8px; font-size: 13px; color: var(--vermelho); }
         .morph-erro:empty { display: none; }
         .armadilha { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+
+        /* Depois de enviar: o conteúdo sai e entra o "Recebido!" */
+        .morph.enviado .morph-topo, .morph.enviado .morph-campo {
+            opacity: 0; filter: blur(4px); transform: scale(0.97);
+            transition: opacity 200ms var(--suave), filter 200ms var(--suave), transform 300ms var(--suave);
+        }
         .morph-obrigado {
+            position: absolute; inset: 0;
             display: grid; place-items: center; align-content: center; gap: 10px; padding: 20px;
             text-align: center; font-size: 15px; color: var(--texto-suave);
+            opacity: 0; visibility: hidden; transform: scale(0.94); filter: blur(4px);
+            transition: opacity 160ms var(--suave), filter 160ms var(--suave), transform 200ms var(--suave), visibility 0s 200ms;
+        }
+        .morph.enviado .morph-obrigado {
+            opacity: 1; visibility: visible; transform: none; filter: none;
+            transition: opacity 320ms var(--suave) 140ms, filter 320ms var(--suave) 140ms, transform 600ms var(--mola-morph) 140ms, visibility 0s;
         }
         .morph-obrigado strong { display: block; font-size: 22px; font-weight: 600; letter-spacing: -0.03em; color: var(--texto); }
         .morph-obrigado .visto {
@@ -691,14 +775,7 @@
         }
         .morph-obrigado .visto svg { width: 22px; height: 22px; }
         .morph-obrigado .visto path { stroke-dasharray: 24; stroke-dashoffset: 24; }
-        .morph.enviado .morph-obrigado .visto path { stroke-dashoffset: 0; transition: stroke-dashoffset 500ms var(--suave) 200ms; }
-        /* Estados: só a parte certa fica visível */
-        .morph:not(.aberto) .morph-caixa,
-        .morph:not(.enviado) .morph-obrigado { opacity: 0; transform: scale(0.96) translateY(6px); filter: blur(4px); pointer-events: none; visibility: hidden; }
-        .morph.aberto .morph-barra { opacity: 0; transform: scale(0.9); filter: blur(4px); pointer-events: none; visibility: hidden; }
-        .morph.enviado .morph-caixa { opacity: 0; transform: scale(0.96); filter: blur(4px); pointer-events: none; visibility: hidden; }
-        .morph.aberto .morph-caixa { transition-delay: 120ms; }
-        .morph-barra, .morph-caixa, .morph-obrigado { transition-property: opacity, transform, filter, visibility; }
+        .morph.enviado .morph-obrigado .visto path { stroke-dashoffset: 0; transition: stroke-dashoffset 500ms var(--suave) 320ms; }
 
         /* ---------- Rodapé ---------- */
         .rodape { overflow: hidden; margin-top: auto; padding: 48px 0 28px; background: var(--superficie); color: var(--texto-suave); font-size: 14px; border-radius: 32px 32px 0 0; }
@@ -883,14 +960,17 @@
             <p class="apoio">Achou um preço errado, sentiu falta de algum produto ou teve uma ideia? Conta pra gente: lemos todas as mensagens.</p>
             <div class="morph-lugar">
                 <div class="morph" id="feedback">
+                    <span class="morph-voador" aria-hidden="true"></span>
                     <button type="button" class="morph-barra" id="feedback-abrir" aria-expanded="false" aria-controls="feedback-caixa" onclick="abrirFeedback()">
-                        <span class="morph-ponto" aria-hidden="true"></span>
-                        <span>Radar de Ofertas</span>
-                        <span class="morph-acao">Feedback</span>
+                        <span class="morph-barra-conteudo" id="feedback-barra-conteudo">
+                            <span class="morph-ponto" aria-hidden="true"></span>
+                            <span class="morph-rotulo">Radar de Ofertas</span>
+                            <span class="morph-acao">Feedback</span>
+                        </span>
                     </button>
                     <form class="morph-caixa" id="feedback-caixa" onsubmit="enviarFeedback(event)" novalidate>
                         <div class="morph-topo">
-                            <span class="morph-titulo"><span class="morph-ponto" aria-hidden="true"></span>Feedback</span>
+                            <span class="morph-titulo"><span class="morph-ponto" id="feedback-ponto-alvo" aria-hidden="true"></span><span class="morph-titulo-texto">Feedback</span></span>
                             <span class="morph-atalho" aria-hidden="true"><kbd id="tecla-atalho">Ctrl</kbd><kbd>Enter</kbd></span>
                         </div>
                         <div class="morph-campo">
@@ -1609,19 +1689,50 @@
         // ---------- Feedback: a barra vira uma caixinha ----------
         const caixaFeedback = () => document.getElementById('feedback');
 
+        // Leva a bolinha para o lugar dela: na barra (fechada) ou no cabeçalho da caixa (aberta)
+        function posicionarPontoFeedback(semTransicao = false) {
+            const morph = caixaFeedback();
+            if (!morph) return;
+            let x, y, tamanho;
+            if (morph.classList.contains('aberto')) {
+                const caixa = document.getElementById('feedback-caixa').getBoundingClientRect();
+                const alvo = document.getElementById('feedback-ponto-alvo').getBoundingClientRect();
+                x = alvo.left - caixa.left;
+                y = alvo.top - caixa.top;
+                tamanho = alvo.width;
+            } else {
+                // A barra fechada centraliza o conteúdo: a bolinha fica no começo dele
+                const larguraFechada = Math.min(360, morph.parentElement.clientWidth);
+                const conteudo = document.getElementById('feedback-barra-conteudo');
+                x = (larguraFechada - conteudo.offsetWidth) / 2;
+                y = 16;
+                tamanho = 20;
+            }
+            if (semTransicao) morph.classList.add('sem-transicao');
+            morph.style.setProperty('--x', `${x}px`);
+            morph.style.setProperty('--y', `${y}px`);
+            morph.style.setProperty('--tam', `${tamanho}px`);
+            if (semTransicao) {
+                void morph.offsetWidth;
+                morph.classList.remove('sem-transicao');
+            }
+        }
+
         function abrirFeedback() {
             const morph = caixaFeedback();
             morph.classList.remove('enviado');
             morph.classList.add('aberto');
+            posicionarPontoFeedback();
             document.getElementById('feedback-abrir').setAttribute('aria-expanded', 'true');
-            // Espera a caixa começar a crescer para pôr o cursor no texto (sem rolar a página)
-            setTimeout(() => document.getElementById('feedback-texto').focus({ preventScroll: true }), reduzMovimento ? 0 : 180);
+            // Espera o quadrado de texto se formar para pôr o cursor nele (sem rolar a página)
+            setTimeout(() => document.getElementById('feedback-texto').focus({ preventScroll: true }), reduzMovimento ? 0 : 300);
         }
 
         function fecharFeedback(devolverFoco = true) {
             const morph = caixaFeedback();
             if (!morph.classList.contains('aberto')) return;
             morph.classList.remove('aberto', 'enviado');
+            posicionarPontoFeedback();
             document.getElementById('feedback-abrir').setAttribute('aria-expanded', 'false');
             document.getElementById('feedback-erro').textContent = '';
             // A barra volta a ficar visível no quadro seguinte; só então recebe o foco
@@ -1697,6 +1808,11 @@
 
             // Atalho mostrado na caixinha de feedback: ⌘ no Mac e no iPhone, Ctrl no resto
             if (/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)) document.getElementById('tecla-atalho').textContent = '⌘';
+
+            // Bolinha da barra de feedback no lugar certo (de novo quando as fontes carregam ou a tela muda)
+            posicionarPontoFeedback(true);
+            document.fonts?.ready.then(() => posicionarPontoFeedback(true));
+            addEventListener('resize', () => posicionarPontoFeedback(true));
 
             // Linha fina embaixo do topo só depois que a página rola
             const topo = document.querySelector('.topo');
