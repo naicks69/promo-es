@@ -131,6 +131,17 @@ def inicializar_banco():
         )
     """)
 
+    # 8. Feedbacks enviados pelos clientes no rodapé do site (o bot repassa no WhatsApp)
+    executar("""
+        CREATE TABLE IF NOT EXISTS feedbacks (
+            id TEXT PRIMARY KEY,
+            texto TEXT,
+            contato TEXT,
+            data_criacao TIMESTAMP,
+            enviado INTEGER DEFAULT 0
+        )
+    """)
+
     # 6. Configurações guardadas pelo próprio sistema (ex.: acesso ao Mercado Livre)
     executar("""
         CREATE TABLE IF NOT EXISTS configuracoes (
@@ -407,3 +418,45 @@ def gravar_configuracao(chave, valor):
 
 if __name__ == "__main__":
     inicializar_banco()
+
+
+# ==========================================
+# FEEDBACK DOS CLIENTES
+# ==========================================
+
+def salvar_feedback(texto, contato=""):
+    import uuid
+    id_feedback = uuid.uuid4().hex
+    executar(
+        "INSERT INTO feedbacks (id, texto, contato, data_criacao, enviado) VALUES (?, ?, ?, ?, 0)",
+        (id_feedback, texto, contato, agora_utc()),
+    )
+    return id_feedback
+
+
+def feedbacks_pendentes(limite=20):
+    """Feedbacks que o bot ainda não repassou, do mais antigo para o mais novo."""
+    linhas = executar(
+        "SELECT id, texto, contato, data_criacao FROM feedbacks WHERE enviado = 0 ORDER BY data_criacao LIMIT ?",
+        (limite,),
+        buscar="todos",
+    )
+    return [{"id": l[0], "texto": l[1], "contato": l[2] or "", "data": data_iso(l[3])} for l in linhas]
+
+
+def marcar_feedbacks_enviados(ids):
+    for id_feedback in ids:
+        executar("UPDATE feedbacks SET enviado = 1 WHERE id = ?", (str(id_feedback),))
+
+
+def ultimos_feedbacks(limite=10):
+    linhas = executar(
+        "SELECT texto, contato, data_criacao, enviado FROM feedbacks ORDER BY data_criacao DESC LIMIT ?",
+        (limite,),
+        buscar="todos",
+    )
+    return [{"texto": l[0], "contato": l[1] or "", "data": data_iso(l[2]), "enviado": bool(l[3])} for l in linhas]
+
+
+def limpar_feedbacks_antigos(dias=90):
+    executar("DELETE FROM feedbacks WHERE enviado = 1 AND data_criacao < ?", (agora_utc(dias * 24),))

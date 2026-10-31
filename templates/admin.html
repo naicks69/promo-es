@@ -59,6 +59,9 @@
             font-weight: 600;
             cursor: pointer;
         }
+        .feedbacks { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+        .feedbacks p { margin: 0 0 4px; white-space: pre-line; }
+        .feedbacks small { color: var(--tinta-suave); font-size: 13px; }
         :focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
     </style>
 </head>
@@ -132,6 +135,22 @@
                 <li class="ok">Senha do bot cadastrada (WHATSAPP_BOT_TOKEN)</li>
                 <li class="{{ 'ok' if link_grupo else 'falta' }}">{% if link_grupo %}Link do grupo no site: {{ link_grupo }}{% else %}Nenhum grupo ativado: escreva !ativar no grupo pelo celular do bot{% endif %}</li>
             </ul>
+        </section>
+
+        <section class="cartao">
+            <h2>Feedbacks dos clientes <small>{{ feedbacks | length }} mais recentes</small></h2>
+            {% if feedbacks %}
+            <ul class="feedbacks">
+                {% for f in feedbacks %}
+                <li>
+                    <p class="diagnostico">{{ f.texto }}</p>
+                    <small><span class="data" data-iso="{{ f.data or '' }}">{{ f.data or '' }}</span>{% if f.contato %} · {{ f.contato }}{% endif %} · {{ 'enviado no WhatsApp' if f.enviado else 'aguardando o bot' }}</small>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p>Nenhum feedback ainda. Eles chegam pela barra no fim do site e o bot repassa para o WhatsApp do próprio número.</p>
+            {% endif %}
         </section>
         {% endif %}
     </main>

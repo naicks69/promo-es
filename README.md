@@ -151,6 +151,14 @@ Para parar de postar em um grupo, escreva **`!desativar`** nele.
 - `SAIR`, `PARAR` ou `CANCELAR`: cancela a inscrição
 - qualquer outra mensagem: responde com o menu e o link do grupo
 
+### Feedback dos clientes
+
+No fim do site há uma barra **Feedback**: ao clicar, ela vira uma caixinha para o
+cliente escrever (e, se quiser, deixar o WhatsApp ou e-mail). Cada mensagem fica
+guardada no banco, aparece no `/admin` e o bot repassa para a conversa do
+**próprio número do bot** (no WhatsApp aparece como "Você" / "Mensagem para mim"),
+em até 1 minuto. Cada pessoa pode mandar até 3 mensagens a cada 10 minutos.
+
 ### Cuidados
 
 - O bot precisa ficar ligado o tempo todo para postar. Se o computador desligar,
@@ -172,3 +180,5 @@ Todas exigem o cabeçalho `X-Bot-Token` com a senha de `WHATSAPP_BOT_TOKEN`.
 | `POST /api/whatsapp/mensagem` | mensagem recebida no privado; devolve a resposta |
 | `POST /api/whatsapp/grupos` | ativa um grupo (comando `!ativar`) |
 | `POST /api/whatsapp/grupos/remover` | desativa um grupo (comando `!desativar`) |
+| `GET /api/whatsapp/feedbacks` | feedbacks do site que ainda não foram repassados |
+| `POST /api/whatsapp/feedbacks/confirmar` | marca os feedbacks repassados |
