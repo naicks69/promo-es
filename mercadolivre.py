@@ -289,6 +289,10 @@ CATEGORIAS_ML_PRINCIPAIS = {
     "eletronicos": ["MLB1000", "MLB1051"],  # Eletrônicos, Áudio e Vídeo / Celulares e Telefones
     "gamer": ["MLB1144"],                  # Games
     "moda": ["MLB1430"],                   # Calçados, Roupas e Bolsas
+    "beleza": ["MLB1246"],                 # Beleza e Cuidado Pessoal
+    "esporte": ["MLB1276"],                # Esportes e Fitness
+    "infantil": ["MLB1384"],               # Bebês
+    "pet": ["MLB1071"],                    # Animais
 }
 
 CACHE_MAIS_VENDIDOS_SEGUNDOS = 3600  # A lista de mais vendidos muda pouco ao longo do dia

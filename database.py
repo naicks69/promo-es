@@ -122,6 +122,15 @@ def inicializar_banco():
         )
     """)
 
+    # 7. Quando cada produto foi publicado pela última vez (impede que volte logo depois de sair)
+    executar("""
+        CREATE TABLE IF NOT EXISTS publicacoes (
+            produto_id TEXT PRIMARY KEY,
+            titulo TEXT,
+            data_publicacao TIMESTAMP
+        )
+    """)
+
     # 6. Configurações guardadas pelo próprio sistema (ex.: acesso ao Mercado Livre)
     executar("""
         CREATE TABLE IF NOT EXISTS configuracoes (
@@ -204,7 +213,7 @@ def linha_para_oferta(l):
     }
 
 
-def buscar_ofertas_db(horas_validade=4, limite=120):
+def buscar_ofertas_db(horas_validade=4, limite=400):
     linhas = executar("""
         SELECT id, titulo, preco, link, categoria, loja, imagem, vendas, data_criacao, preco_original
         FROM ofertas
@@ -332,6 +341,35 @@ def link_convite_grupo():
         LIMIT 1
     """, buscar="um")
     return linha[0] if linha else ""
+
+
+# ==========================================
+# CONTROLE DE REPETIÇÃO
+# ==========================================
+
+def ofertas_ativas(horas_validade=4):
+    """[(id, título)] das ofertas que estão no site agora."""
+    return executar(
+        "SELECT id, titulo FROM ofertas WHERE data_criacao >= ?", (agora_utc(horas_validade),), buscar="todos"
+    )
+
+
+def publicados_desde(horas):
+    """[(id, título)] dos produtos publicados no site nas últimas `horas`."""
+    return executar(
+        "SELECT produto_id, titulo FROM publicacoes WHERE data_publicacao >= ?", (agora_utc(horas),), buscar="todos"
+    )
+
+
+def registrar_publicacao(produto_id, titulo):
+    executar("""
+        INSERT INTO publicacoes (produto_id, titulo, data_publicacao) VALUES (?, ?, ?)
+        ON CONFLICT (produto_id) DO UPDATE SET titulo = excluded.titulo, data_publicacao = excluded.data_publicacao
+    """, (produto_id, titulo, agora_utc()))
+
+
+def limpar_publicacoes_antigas(horas=72):
+    executar("DELETE FROM publicacoes WHERE data_publicacao < ?", (agora_utc(horas),))
 
 
 # ==========================================

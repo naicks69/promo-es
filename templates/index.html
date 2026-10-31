@@ -11,6 +11,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
 
+    <script>document.documentElement.classList.add('js');</script>
     <style>
         :root {
             --tinta: #1B2A4A;
@@ -33,6 +34,15 @@
             --mercadolivre-texto: #2D3277;
             --aliexpress: #FFFFFF;
             --aliexpress-texto: #E62E04;
+
+            --tinta-clara: #24375F;
+            --tinta-mais-clara: #2E4573;
+
+            /* Movimento */
+            --suave: cubic-bezier(0.2, 0.7, 0.2, 1);
+            --rapido: 160ms;
+            --medio: 320ms;
+            --lento: 560ms;
 
             --fonte: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
             --fonte-preco: "Barlow Condensed", "Arial Narrow", sans-serif;
@@ -105,6 +115,8 @@
             white-space: nowrap;
         }
         .marca svg { width: 30px; height: 30px; flex: none; }
+        .marca .varredura { transform-origin: 16px 16px; animation: girar 4s linear infinite; }
+        @keyframes girar { to { transform: rotate(360deg); } }
         .topo-acoes { display: flex; align-items: center; gap: 8px; }
         .botao-topo {
             display: inline-flex;
@@ -122,6 +134,16 @@
             white-space: nowrap;
         }
         .botao-topo svg { width: 18px; height: 18px; flex: none; }
+        .botao-topo, .loja, .chip, .comprar, .compartilhar, .fav, .botao-grupo, .flutuante,
+        .busca-lojas button, .fechar-resultados, .mais-ofertas, .limpar-filtros, .abrir-whatsapp {
+            transition: transform var(--rapido) var(--suave), background-color var(--rapido) var(--suave),
+                        color var(--rapido) var(--suave), opacity var(--rapido) var(--suave);
+        }
+        .botao-topo:active, .loja:active, .chip:active, .comprar:active, .compartilhar:active,
+        .botao-grupo:active, .flutuante:active, .mais-ofertas:active, .busca-lojas button:active,
+        .abrir-whatsapp:active { transform: scale(0.96); }
+        .botao-topo:hover { background: rgba(255, 255, 255, 0.2); }
+        .botao-topo.whatsapp:hover { background: #22C065; }
         .botao-topo[aria-pressed="true"] { background: #fff; color: var(--tinta); }
         .botao-topo.whatsapp { background: var(--whatsapp); }
         .contador {
@@ -146,12 +168,14 @@
         .abertura {
             background: var(--tinta);
             color: #fff;
-            padding: 8px 0 28px;
+            padding: 8px 0 0;
+            overflow: hidden;
         }
+        .abertura-grade { display: grid; gap: 24px; align-items: center; }
         .abertura h1 {
             margin: 0;
-            max-width: 20ch;
-            font-size: clamp(30px, 7.6vw, 54px);
+            max-width: 16ch;
+            font-size: clamp(34px, 9vw, 54px);
             line-height: 1;
             font-weight: 800;
             letter-spacing: -0.035em;
@@ -197,6 +221,7 @@
         .loja[data-loja="aliexpress"] { background: var(--aliexpress); color: var(--aliexpress-texto); }
         .loja[data-loja="aliexpress"][aria-pressed="true"] { border-color: var(--aliexpress-texto); }
         .loja[aria-pressed="true"] { border-color: #fff; box-shadow: 0 0 0 2px var(--tinta) inset; }
+        .loja:not(:disabled):hover { transform: translateY(-3px); }
         .loja:disabled { cursor: default; opacity: 0.55; }
 
         .atualizado {
@@ -208,29 +233,82 @@
             font-weight: 600;
             color: #C9D1E3;
         }
-        .atualizado::before {
+        .ponto-ao-vivo { position: relative; width: 9px; height: 9px; flex: none; }
+        .ponto-ao-vivo::before, .ponto-ao-vivo::after {
             content: "";
-            width: 9px;
-            height: 9px;
+            position: absolute;
+            inset: 0;
             border-radius: 50%;
             background: var(--whatsapp);
-            animation: pulso 2s infinite;
         }
+        .ponto-ao-vivo::after { animation: pulso 2s var(--suave) infinite; }
         @keyframes pulso {
-            0% { box-shadow: 0 0 0 0 rgba(31, 175, 90, 0.55); }
-            70% { box-shadow: 0 0 0 9px rgba(31, 175, 90, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(31, 175, 90, 0); }
+            from { transform: scale(1); opacity: 0.7; }
+            to { transform: scale(3); opacity: 0; }
         }
 
-        /* Faixa com as cores das três lojas */
-        .faixa-lojas {
-            height: 6px;
-            background: linear-gradient(90deg,
-                var(--amazon) 0 25%,
-                var(--shopee) 25% 50%,
-                var(--mercadolivre) 50% 75%,
-                var(--aliexpress-texto) 75% 100%);
+        /* Radar: as ofertas mais novas aparecem como pontos enquanto o feixe gira */
+        .radar { display: none; position: relative; width: 100%; max-width: 400px; aspect-ratio: 1; justify-self: end; }
+        .radar svg.fundo-radar { position: absolute; inset: 0; width: 100%; height: 100%; }
+        .radar .feixe { transform-origin: 200px 200px; animation: girar 6s linear infinite; }
+        .radar .ponto {
+            position: absolute;
+            width: 21%;
+            aspect-ratio: 1;
+            margin: -10.5% 0 0 -10.5%;
+            border-radius: 50%;
+            background: #fff;
+            overflow: hidden;
+            opacity: 0;
+            transform: scale(0.4);
+            animation: aparecer-ponto 6s var(--suave) infinite;
+            text-decoration: none;
         }
+        .radar .ponto img { width: 100%; height: 100%; object-fit: contain; padding: 10%; }
+        .radar .ponto:hover, .radar .ponto:focus-visible { animation-play-state: paused; opacity: 1; transform: scale(1.08); }
+        @keyframes aparecer-ponto {
+            0% { opacity: 0; transform: scale(0.4); }
+            8% { opacity: 1; transform: scale(1.06); }
+            14%, 70% { opacity: 1; transform: scale(1); }
+            85%, 100% { opacity: 0.55; transform: scale(0.94); }
+        }
+
+        /* Faixa "acabou de cair no radar": passa sozinha e para ao passar o mouse ou tocar */
+        .chegaram { margin-top: 24px; padding: 14px 0 16px; background: var(--tinta-forte); }
+        .chegaram h2 {
+            margin: 0 0 10px;
+            font-size: 15px;
+            font-weight: 700;
+            color: #C9D1E3;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .trilho { overflow: hidden; }
+        .trilho-faixa { display: flex; gap: 10px; width: max-content; animation: deslizar 60s linear infinite; }
+        .trilho:hover .trilho-faixa, .trilho:focus-within .trilho-faixa { animation-play-state: paused; }
+        @keyframes deslizar { to { transform: translateX(-50%); } }
+        .mini {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 240px;
+            padding: 8px 12px 8px 8px;
+            border-radius: 12px;
+            background: var(--tinta-clara);
+            color: #fff;
+            text-decoration: none;
+            transition: background-color var(--rapido) var(--suave), transform var(--rapido) var(--suave);
+        }
+        .mini:hover { background: var(--tinta-mais-clara); transform: translateY(-2px); }
+        .mini img, .mini .sem-foto { width: 52px; height: 52px; flex: none; border-radius: 8px; background: #fff; object-fit: contain; padding: 3px; }
+        .mini span { display: block; min-width: 0; }
+        .mini .nome { font-size: 13px; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+        .mini .valor { font-family: var(--fonte-preco); font-weight: 800; font-size: 20px; color: var(--etiqueta); line-height: 1.1; }
+
+        /* Faixa com as cores das quatro lojas */
+        .faixa-lojas { display: flex; height: 6px; }
+        .faixa-lojas span { flex: 1; }
 
         /* ---------- Grupo de promoções no WhatsApp ---------- */
         .grupo-promo {
@@ -276,7 +354,7 @@
             text-decoration: none;
         }
         .botao-grupo svg { width: 22px; height: 22px; }
-        .botao-grupo:hover { background: #22C065; }
+        .botao-grupo:hover { background: #22C065; transform: translateY(-2px); }
         .link-privado {
             display: block;
             margin: 12px auto 0;
@@ -370,12 +448,19 @@
             box-shadow: 0 6px 18px rgba(11, 79, 60, 0.35);
         }
         .flutuante svg { width: 24px; height: 24px; }
+        .flutuante:hover { background: #22C065; transform: translateY(-2px); }
+        .js .flutuante:not(.visivel) { opacity: 0; transform: translateY(24px); pointer-events: none; }
 
         /* ---------- Filtros ---------- */
         .filtros {
-            padding: 16px 0 8px;
+            position: sticky;
+            top: 60px;
+            z-index: 15;
+            margin: 0 -16px;
+            padding: 12px 16px 10px;
             display: grid;
-            gap: 12px;
+            gap: 10px;
+            background: var(--fundo);
         }
         .linha-busca { display: flex; gap: 8px; }
         .busca { position: relative; flex: 1; }
@@ -392,7 +477,7 @@
         .busca input, .ordenar {
             width: 100%;
             height: 46px;
-            border: 1.5px solid var(--linha);
+            border: 1.5px solid transparent;
             border-radius: 12px;
             background: var(--papel);
             color: var(--tinta);
@@ -402,6 +487,7 @@
         .busca input { padding: 0 14px 0 42px; }
         .busca input::placeholder { color: var(--tinta-suave); }
         .busca input:focus, .ordenar:focus { outline: none; border-color: var(--tinta); }
+        .busca input, .ordenar { transition: border-color var(--rapido) var(--suave); }
         .ordenar {
             width: auto;
             max-width: 40%;
@@ -420,26 +506,42 @@
         .categorias::-webkit-scrollbar { display: none; }
         .chip {
             flex: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
             height: 38px;
-            padding: 0 16px;
+            padding: 0 14px;
             border-radius: 999px;
-            border: 1.5px solid var(--linha);
+            border: 0;
             background: var(--papel);
             font-size: 15px;
             font-weight: 600;
         }
-        .chip[aria-pressed="true"] {
-            background: var(--tinta);
-            border-color: var(--tinta);
-            color: #fff;
-        }
+        .chip small { font-size: 12.5px; font-weight: 600; color: var(--tinta-suave); }
+        .chip:hover { background: #E4E8F0; }
+        .chip[aria-pressed="true"] { background: var(--tinta); color: #fff; }
+        .chip[aria-pressed="true"] small { color: #C9D1E3; }
 
         .resumo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
             margin: 6px 0 0;
-            min-height: 21px;
+            min-height: 32px;
             font-size: 14px;
             color: var(--tinta-suave);
         }
+        .limpar-filtros {
+            height: 32px;
+            padding: 0 12px;
+            border: 0;
+            border-radius: 999px;
+            background: #E4E8F0;
+            color: var(--tinta);
+            font-size: 13.5px;
+            font-weight: 600;
+        }
+        .limpar-filtros:hover { background: #D8DEE9; }
 
         /* ---------- Busca do cliente nas lojas ---------- */
         .busca-lojas {
@@ -449,9 +551,10 @@
             margin: 8px 0 4px;
             padding: 12px 14px;
             border-radius: 12px;
-            background: var(--papel);
-            border: 1.5px dashed #C3CAD8;
+            background: #E4E8F0;
+            animation: abrir var(--medio) var(--suave);
         }
+        @keyframes abrir { from { opacity: 0; transform: translateY(-8px); } }
         .busca-lojas[hidden], .resultados-lojas[hidden] { display: none; }
         .busca-lojas p { margin: 0; flex: 1; font-size: 14px; color: var(--tinta-suave); }
         .busca-lojas b { color: var(--tinta); }
@@ -470,13 +573,14 @@
             margin: 12px 0 4px;
             padding: 16px;
             border-radius: 16px;
-            background: #E9ECF3;
-            scroll-margin-top: 72px;
+            background: #E4E8F0;
+            scroll-margin-top: 190px;
+            animation: abrir var(--medio) var(--suave);
         }
         .resultados-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
         .resultados-topo h2 { margin: 0; font-size: 20px; line-height: 1.15; letter-spacing: -0.02em; }
         .resultados-topo p { margin: 4px 0 0; font-size: 14px; color: var(--tinta-suave); }
-        .fechar-resultados { background: var(--papel); color: var(--tinta); border: 1.5px solid var(--linha); }
+        .fechar-resultados { background: var(--papel); color: var(--tinta); }
         .vitrine.vitrine-busca { padding: 14px 0 14px; }
         .carregando-busca, .sem-resultados { margin: 0; color: var(--tinta-suave); }
         .sem-resultados { padding: 8px 0 14px; }
@@ -502,7 +606,7 @@
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 12px;
-            padding: 10px 0 88px;
+            padding: 10px 0 24px;
         }
 
         .oferta {
@@ -512,7 +616,27 @@
             background: var(--papel);
             border-radius: 14px;
             overflow: hidden;
-            border: 1px solid var(--linha);
+            transition: transform var(--medio) var(--suave);
+        }
+        .oferta:not(.esqueleto):hover { transform: translateY(-4px); }
+        .oferta .foto img { transition: transform var(--lento) var(--suave); }
+        .oferta:hover .foto img { transform: scale(1.06); }
+
+        /* Entrada: só com JavaScript ativo, para nada ficar escondido se o script falhar */
+        .js .entra { opacity: 0; transform: translateY(24px); }
+        .js .entra.visivel {
+            opacity: 1;
+            transform: none;
+            transition: opacity var(--lento) var(--suave) var(--atraso, 0ms),
+                        transform var(--lento) var(--suave) var(--atraso, 0ms);
+        }
+        .js .oferta.entra.visivel:hover { transform: translateY(-4px); transition-delay: 0ms; }
+        /* Oferta que chegou com a página aberta */
+        .chegou { animation: chegada 900ms var(--suave); }
+        @keyframes chegada {
+            0% { transform: scale(0.9); }
+            45% { transform: scale(1.03); }
+            100% { transform: none; }
         }
         .oferta .foto {
             position: relative;
@@ -520,7 +644,6 @@
             aspect-ratio: 1;
             overflow: hidden;
             background: #FFFFFF;
-            border-bottom: 1px solid var(--linha);
         }
         /* Fotos de qualquer formato ficam num quadrado, sem esticar o card nem cortar o produto */
         .oferta .foto img {
@@ -545,7 +668,7 @@
         .selo-loja.amazon { background: var(--amazon); color: var(--amazon-texto); }
         .selo-loja.shopee { background: var(--shopee); color: var(--shopee-texto); }
         .selo-loja.mercadolivre { background: var(--mercadolivre); color: var(--mercadolivre-texto); }
-        .selo-loja.aliexpress { background: var(--aliexpress); color: var(--aliexpress-texto); }
+        .selo-loja.aliexpress { background: #FFE9E3; color: var(--aliexpress-texto); }
         .selo-nova {
             position: absolute;
             left: 8px;
@@ -574,6 +697,13 @@
         .fav svg { width: 18px; height: 18px; }
         .fav[aria-pressed="true"] { color: var(--preco); }
         .fav[aria-pressed="true"] svg { fill: currentColor; }
+        .fav:hover { transform: scale(1.1); }
+        .fav.pulsa svg { animation: coracao 500ms var(--suave); }
+        @keyframes coracao {
+            0% { transform: scale(1); }
+            35% { transform: scale(1.45); }
+            100% { transform: scale(1); }
+        }
 
         .oferta .info {
             display: flex;
@@ -666,28 +796,39 @@
             white-space: nowrap;
             overflow: hidden;
         }
-        .comprar:hover { background: #24375F; }
+        .comprar:hover { background: var(--tinta-clara); }
         .compartilhar {
             width: 40px;
             height: 40px;
             flex: none;
             display: grid;
             place-items: center;
-            border: 1.5px solid var(--linha);
+            border: 0;
             border-radius: 10px;
-            background: var(--papel);
+            background: #EEF0F4;
         }
+        .compartilhar:hover { background: #E2E6EE; }
         .compartilhar svg { width: 18px; height: 18px; }
 
         /* Carregando */
         .esqueleto { pointer-events: none; }
-        .esqueleto .foto, .esqueleto .barra {
-            background: linear-gradient(90deg, #ECEEF2 0%, #F6F7F9 50%, #ECEEF2 100%);
-            background-size: 200% 100%;
-            animation: brilho 1.4s linear infinite;
-        }
+        .esqueleto .foto, .esqueleto .barra { background: #E6E9EF; animation: respirar 1.2s ease-in-out infinite alternate; }
         .esqueleto .barra { height: 14px; border-radius: 6px; }
-        @keyframes brilho { to { background-position: -200% 0; } }
+        @keyframes respirar { to { opacity: 0.45; } }
+
+        /* Mais ofertas ao rolar */
+        .mais { display: flex; justify-content: center; padding: 8px 0 96px; }
+        .mais-ofertas {
+            height: 48px;
+            padding: 0 22px;
+            border: 0;
+            border-radius: 999px;
+            background: var(--tinta);
+            color: #fff;
+            font-size: 15px;
+            font-weight: 700;
+        }
+        .mais-ofertas:hover { background: var(--tinta-clara); }
 
         .vazio {
             grid-column: 1 / -1;
@@ -716,7 +857,10 @@
             color: var(--tinta);
             background: var(--papel);
         }
-        .janela::backdrop { background: rgba(18, 29, 53, 0.6); }
+        .janela::backdrop { background: rgba(18, 29, 53, 0.6); animation: escurecer var(--medio) var(--suave); }
+        .janela[open] { animation: surgir var(--medio) var(--suave); }
+        @keyframes surgir { from { opacity: 0; transform: translateY(16px) scale(0.97); } }
+        @keyframes escurecer { from { opacity: 0; } }
         .janela .corpo { padding: 22px 20px 20px; }
         .janela h2 {
             margin: 0 40px 6px 0;
@@ -753,11 +897,12 @@
             height: 40px;
             padding: 0 16px;
             border-radius: 999px;
-            border: 1.5px solid var(--linha);
+            background: #EEF0F4;
             font-weight: 600;
             cursor: pointer;
+            transition: background-color var(--rapido) var(--suave), color var(--rapido) var(--suave);
         }
-        .opcao input:checked + span { background: var(--tinta); border-color: var(--tinta); color: #fff; }
+        .opcao input:checked + span { background: var(--tinta); color: #fff; }
         .opcao input:focus-visible + span { outline: 3px solid var(--etiqueta); outline-offset: 2px; }
         .abrir-whatsapp {
             display: flex;
@@ -787,6 +932,14 @@
         }
         .rodape p { margin: 0 0 6px; max-width: 70ch; }
         .rodape strong { color: #fff; }
+        .rodape .nome-grande {
+            margin: 18px 0 0;
+            font-size: clamp(40px, 10vw, 120px);
+            font-weight: 800;
+            line-height: 0.9;
+            letter-spacing: -0.045em;
+            color: #fff;
+        }
 
         .aviso {
             position: fixed;
@@ -810,7 +963,7 @@
         @media (min-width: 640px) {
             .so-tela-grande { display: inline; }
             .marca { font-size: 20px; }
-            .abertura { padding: 24px 0 36px; }
+            .abertura { padding: 24px 0 0; }
             .abertura p { font-size: 17px; }
             .loja { font-size: 18px; min-height: 72px; padding: 12px 16px; }
             .lojas { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -831,7 +984,9 @@
             .link-privado { margin: 12px 0 0; }
         }
         @media (min-width: 960px) {
-            .abertura h1 { max-width: 26ch; }
+            .abertura h1 { max-width: 15ch; font-size: clamp(48px, 5.4vw, 76px); }
+            .abertura-grade { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 40px; }
+            .radar { display: block; }
             .vitrine { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
             .filtros { grid-template-columns: minmax(0, 1fr); }
             .ordenar { max-width: none; }
@@ -841,6 +996,10 @@
 
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { animation: none !important; transition: none !important; }
+            .js .entra { opacity: 1; transform: none; }
+            .radar .ponto { opacity: 1; transform: none; }
+            .trilho { overflow-x: auto; }
+            .js .flutuante:not(.visivel) { opacity: 1; transform: none; pointer-events: auto; }
         }
     </style>
 </head>
@@ -853,7 +1012,7 @@
                     <circle cx="16" cy="16" r="14" fill="#FFFFFF" opacity=".12"/>
                     <circle cx="16" cy="16" r="9" fill="none" stroke="#FFFFFF" stroke-width="1.5" opacity=".35"/>
                     <circle cx="16" cy="16" r="4.5" fill="none" stroke="#FFFFFF" stroke-width="1.5" opacity=".35"/>
-                    <path d="M16 16 L16 2 A14 14 0 0 1 28.1 9 Z" fill="#FFD60A" opacity=".9"/>
+                    <g class="varredura"><path d="M16 16 L16 2 A14 14 0 0 1 28.1 9 Z" fill="#FFD60A" opacity=".9"/></g>
                     <circle cx="22" cy="11" r="2" fill="#EE4D2D"/>
                 </svg>
                 <span>Radar de Ofertas</span>
@@ -882,32 +1041,54 @@
     </header>
 
     <section class="abertura">
-        <div class="container">
-            <h1>As melhores ofertas da Amazon, Shopee, Mercado Livre e AliExpress</h1>
-            <p>Promoções novas a cada 5 minutos. Cada oferta fica no ar por até {{ horas_validade }} horas, então quem chega primeiro aproveita.</p>
+        <div class="container abertura-grade">
+            <div>
+                <h1 class="entra" style="--atraso: 0ms">O radar das melhores ofertas</h1>
+                <p class="entra" style="--atraso: 90ms">Promoções da Amazon, Shopee, Mercado Livre e AliExpress, conferidas a cada 5 minutos. Cada oferta fica no ar por até {{ horas_validade }} horas: quem chega primeiro aproveita.</p>
 
-            <div class="lojas" role="group" aria-label="Filtrar por loja">
-                {% for chave, nome in lojas.items() %}
-                <button type="button" class="loja" data-loja="{{ chave }}" aria-pressed="false" onclick="escolherLoja(this.dataset.loja)">
-                    {{ nome }}
-                    <small id="total-{{ chave }}">…</small>
-                </button>
-                {% endfor %}
+                <div class="lojas" role="group" aria-label="Filtrar por loja">
+                    {% for chave, nome in lojas.items() %}
+                    <button type="button" class="loja entra" style="--atraso: {{ 180 + loop.index0 * 70 }}ms" data-loja="{{ chave }}" aria-pressed="false" onclick="escolherLoja(this.dataset.loja)">
+                        {{ nome }}
+                        <small id="total-{{ chave }}">…</small>
+                    </button>
+                    {% endfor %}
+                </div>
+
+                <div class="atualizado entra" style="--atraso: 480ms"><span class="ponto-ao-vivo" aria-hidden="true"></span><span id="atualizado" aria-live="polite">Buscando ofertas…</span></div>
             </div>
 
-            <div class="atualizado" id="atualizado" aria-live="polite">Buscando ofertas…</div>
+            <div class="radar" id="radar" aria-label="Ofertas que acabaram de chegar">
+                <svg class="fundo-radar" viewBox="0 0 400 400" aria-hidden="true">
+                    <circle cx="200" cy="200" r="198" fill="#22345A"/>
+                    <circle cx="200" cy="200" r="140" fill="#263B65"/>
+                    <circle cx="200" cy="200" r="82" fill="#2B4270"/>
+                    <g class="feixe"><path d="M200 200 L200 2 A198 198 0 0 0 48.3 72.8 Z" fill="#FFFFFF" opacity=".1"/></g>
+                    <circle cx="200" cy="200" r="7" fill="#FFD60A"/>
+                </svg>
+            </div>
         </div>
+
+        <section class="chegaram" aria-labelledby="titulo-chegaram">
+            <div class="container">
+                <h2 id="titulo-chegaram"><span class="ponto-ao-vivo" aria-hidden="true"></span>Acabou de cair no radar</h2>
+            </div>
+            <div class="trilho"><div class="trilho-faixa" id="trilho"></div></div>
+        </section>
     </section>
-    <div class="faixa-lojas" aria-hidden="true"></div>
+    <div class="faixa-lojas" aria-hidden="true">
+        <span style="background: var(--amazon)"></span><span style="background: var(--shopee)"></span><span style="background: var(--mercadolivre)"></span><span style="background: var(--aliexpress-texto)"></span>
+    </div>
 
     <main class="container">
         <div class="filtros">
             <div class="linha-busca">
                 <label class="busca">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-                    <input type="search" id="busca" placeholder="Buscar" aria-label="Buscar produto" oninput="aplicarFiltros()" onkeydown="if (event.key === 'Enter') buscarNasLojas()" enterkeyhint="search">
+                    <input type="search" id="busca" placeholder="Buscar" aria-label="Buscar produto" oninput="aplicarFiltros(true)" onkeydown="if (event.key === 'Enter') buscarNasLojas()" enterkeyhint="search">
                 </label>
-                <select id="ordenar" class="ordenar" aria-label="Ordenar ofertas" onchange="aplicarFiltros()">
+                <select id="ordenar" class="ordenar" aria-label="Ordenar ofertas" onchange="aplicarFiltros(true)">
+                    <option value="destaques">Destaques</option>
                     <option value="recentes">Mais recentes</option>
                     <option value="vendidos">Mais vendidos</option>
                     <option value="menor-preco">Menor preço</option>
@@ -916,7 +1097,7 @@
             </div>
             <div class="categorias" id="categorias" role="group" aria-label="Categorias"></div>
         </div>
-        <p class="resumo" id="resumo"></p>
+        <div class="resumo"><span id="resumo"></span><button type="button" class="limpar-filtros" id="limpar-filtros" hidden onclick="limparFiltros()">Limpar filtros</button></div>
 
         <div class="busca-lojas" id="busca-lojas" hidden>
             <p>Procurando algo específico? Busque <b id="termo-busca"></b> direto nas lojas, mesmo fora das promoções.</p>
@@ -925,6 +1106,7 @@
         <section class="resultados-lojas" id="resultados-lojas" hidden aria-live="polite"></section>
 
         <div class="vitrine" id="vitrine" aria-live="polite"></div>
+        <div class="mais" id="mais"><button type="button" class="mais-ofertas" id="mais-ofertas" hidden onclick="mostrarMais()">Mostrar mais ofertas</button></div>
     </main>
 
     <footer class="rodape">
@@ -932,6 +1114,7 @@
             <p><strong>Radar de Ofertas</strong></p>
             <p>Os preços podem mudar nas lojas a qualquer momento. Confira o valor final antes de comprar.</p>
             <p>Participamos dos programas de afiliados da Amazon, Shopee, Mercado Livre e AliExpress: podemos receber uma comissão pelas compras feitas pelos nossos links, sem custo extra para você.</p>
+            <p class="nome-grande" aria-hidden="true">Radar de Ofertas</p>
         </div>
     </footer>
 
@@ -965,8 +1148,9 @@
     <template id="modelo-grupo">
         <section class="grupo-promo" aria-labelledby="titulo-grupo">
             <div class="grupo-texto">
-                <h2 id="titulo-grupo">Promoção boa acaba rápido. Receba no WhatsApp.</h2>
+                <h2 id="titulo-grupo">Ofertas no seu WhatsApp</h2>
                 <ul>
+                    <li>Promoção boa acaba rápido: receba assim que ela cair no radar</li>
                     <li>Ofertas novas a cada {{ intervalo_whatsapp }} minutos, das 8h às 22h</li>
                     <li>Amazon, Shopee, Mercado Livre e AliExpress num grupo só</li>
                     <li>Grátis, e você sai quando quiser</li>
@@ -1023,6 +1207,74 @@
         let soFavoritos = false;
         let favoritos = lerFavoritos();
 
+        // Vitrine mostrada aos poucos: 24 ofertas e mais 24 a cada vez que o cliente chega ao fim
+        const PASSO = 24;
+        let limiteVisivel = PASSO;
+        let listaAtual = [];
+        const idsVistos = new Set();   // Ofertas que já entraram na tela (só animam na primeira vez)
+        let jaMostrouOfertas = false;
+        const reduzMovimento = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        // Revela cada elemento .entra quando ele chega na tela
+        const observadorEntrada = 'IntersectionObserver' in window
+            ? new IntersectionObserver(entradas => entradas.forEach(entrada => {
+                if (!entrada.isIntersecting) return;
+                entrada.target.classList.add('visivel');
+                observadorEntrada.unobserve(entrada.target);
+            }), { rootMargin: '0px 0px -6% 0px' })
+            : null;
+
+        function observar(elemento) {
+            if (observadorEntrada) observadorEntrada.observe(elemento);
+            else elemento.classList.add('visivel');
+        }
+
+        // Troca o conteúdo da vitrine com uma transição suave, quando o navegador permite
+        function trocarVitrine(atualizar) {
+            if (document.startViewTransition && !reduzMovimento && jaMostrouOfertas) {
+                document.startViewTransition(atualizar);
+            } else {
+                atualizar();
+            }
+        }
+
+        // Número que sobe contando até o valor novo
+        function contarAte(elemento, alvo, formatar) {
+            const inicio = Number(elemento.dataset.valor || 0);
+            elemento.dataset.valor = alvo;
+            if (reduzMovimento || inicio === alvo) { elemento.textContent = formatar(alvo); return; }
+            const comeco = performance.now();
+            const duracao = 700;
+            function quadro(agora) {
+                const progresso = Math.min(1, (agora - comeco) / duracao);
+                const suavizado = 1 - Math.pow(1 - progresso, 3);
+                elemento.textContent = formatar(Math.round(inicio + (alvo - inicio) * suavizado));
+                if (progresso < 1) requestAnimationFrame(quadro);
+            }
+            requestAnimationFrame(quadro);
+        }
+
+        // Intercala lojas e categorias, para não juntar vários produtos parecidos em sequência
+        function misturar(lista) {
+            const porLoja = {};
+            lista.forEach(p => (porLoja[p.loja] ||= []).push(p));
+            const filas = Object.values(porLoja).map(daLoja => {
+                const porCategoria = {};
+                daLoja.forEach(p => (porCategoria[p.categoria] ||= []).push(p));
+                const grupos = Object.values(porCategoria);
+                const intercalada = [];
+                for (let i = 0; grupos.some(g => i < g.length); i++) {
+                    grupos.forEach(g => { if (i < g.length) intercalada.push(g[i]); });
+                }
+                return intercalada;
+            });
+            const resultado = [];
+            for (let i = 0; filas.some(f => i < f.length); i++) {
+                filas.forEach(f => { if (i < f.length) resultado.push(f[i]); });
+            }
+            return resultado;
+        }
+
         function lerFavoritos() {
             try { return JSON.parse(localStorage.getItem('favoritos') || '[]'); }
             catch (e) { return []; }
@@ -1045,6 +1297,7 @@
                 ultimaResposta = texto;
                 atualizarLojas();
                 montarCategorias();
+                atualizarRadarETrilho();
                 aplicarFiltros();
             } catch (erro) {
                 console.error('Erro ao carregar ofertas:', erro);
@@ -1085,8 +1338,8 @@
             document.querySelectorAll('.loja').forEach(botao => {
                 const loja = botao.dataset.loja;
                 const total = produtos.filter(p => p.loja === loja).length;
-                document.getElementById(`total-${loja}`).textContent =
-                    total === 0 ? 'em breve' : (total === 1 ? '1 oferta' : `${total} ofertas`);
+                contarAte(document.getElementById(`total-${loja}`), total,
+                    n => n === 0 ? 'em breve' : (n === 1 ? '1 oferta' : `${n} ofertas`));
                 botao.disabled = total === 0;
                 if (total === 0 && lojaAtual === loja) lojaAtual = 'todas';
                 botao.setAttribute('aria-pressed', lojaAtual === loja);
@@ -1098,17 +1351,23 @@
             document.querySelectorAll('.loja').forEach(botao => {
                 botao.setAttribute('aria-pressed', botao.dataset.loja === lojaAtual);
             });
-            aplicarFiltros();
+            aplicarFiltros(true);
         }
 
         function montarCategorias() {
-            const existentes = [...new Set(produtos.map(p => p.categoria).filter(Boolean))];
+            const totais = {};
+            produtos.forEach(p => { if (p.categoria) totais[p.categoria] = (totais[p.categoria] || 0) + 1; });
+            // Na ordem das categorias do site, só as que têm ofertas agora
+            const existentes = [
+                ...Object.keys(NOMES_CATEGORIAS).filter(c => totais[c]),
+                ...Object.keys(totais).filter(c => !(c in NOMES_CATEGORIAS)),
+            ];
             if (categoriaAtual !== 'todas' && !existentes.includes(categoriaAtual)) categoriaAtual = 'todas';
-            const opcoes = [['todas', 'Tudo'], ...existentes.map(c => [c, NOMES_CATEGORIAS[c] || c])];
-            document.getElementById('categorias').innerHTML = opcoes.map(([valor, nome]) => `
+            const opcoes = [['todas', 'Tudo', produtos.length], ...existentes.map(c => [c, NOMES_CATEGORIAS[c] || c, totais[c]])];
+            document.getElementById('categorias').innerHTML = opcoes.map(([valor, nome, total]) => `
                 <button type="button" class="chip" data-categoria="${escaparHtml(valor)}"
                         aria-pressed="${valor === categoriaAtual}"
-                        onclick="escolherCategoria(this.dataset.categoria)">${escaparHtml(nome)}</button>
+                        onclick="escolherCategoria(this.dataset.categoria)">${escaparHtml(nome)} <small>${total}</small></button>
             `).join('');
         }
 
@@ -1117,10 +1376,23 @@
             document.querySelectorAll('.chip').forEach(chip => {
                 chip.setAttribute('aria-pressed', chip.dataset.categoria === categoria);
             });
-            aplicarFiltros();
+            aplicarFiltros(true);
         }
 
-        function aplicarFiltros() {
+        function limparFiltros() {
+            document.getElementById('busca').value = '';
+            lojaAtual = 'todas';
+            categoriaAtual = 'todas';
+            soFavoritos = false;
+            document.getElementById('botao-favoritos').setAttribute('aria-pressed', false);
+            document.querySelectorAll('.loja').forEach(b => b.setAttribute('aria-pressed', false));
+            document.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', c.dataset.categoria === 'todas'));
+            fecharResultados();
+            aplicarFiltros(true);
+        }
+
+        // reiniciar = o cliente mudou um filtro (volta a mostrar as primeiras ofertas, com transição)
+        function aplicarFiltros(reiniciar = false) {
             let lista = [...produtos];
             const texto = document.getElementById('busca').value.trim().toLowerCase();
             const ordenacao = document.getElementById('ordenar').value;
@@ -1130,7 +1402,8 @@
             if (categoriaAtual !== 'todas') lista = lista.filter(p => p.categoria === categoriaAtual);
             if (soFavoritos) lista = lista.filter(p => favoritos.includes(p.id));
 
-            if (ordenacao === 'menor-preco') lista.sort((a, b) => a.preco - b.preco);
+            if (ordenacao === 'destaques') lista = misturar(lista);
+            else if (ordenacao === 'menor-preco') lista.sort((a, b) => a.preco - b.preco);
             else if (ordenacao === 'maior-preco') lista.sort((a, b) => b.preco - a.preco);
             else if (ordenacao === 'vendidos') lista.sort((a, b) => (b.vendas || 0) - (a.vendas || 0));
 
@@ -1138,17 +1411,32 @@
             document.getElementById('resumo').textContent = soFavoritos
                 ? `Mostrando seus favoritos (${lista.length})`
                 : (filtrando ? (lista.length === 1 ? '1 oferta encontrada' : `${lista.length} ofertas encontradas`) : '');
+            document.getElementById('limpar-filtros').hidden = !(filtrando || soFavoritos);
             document.getElementById('contador-favoritos').textContent = favoritos.length;
 
             const caixaBusca = document.getElementById('busca-lojas');
             caixaBusca.hidden = texto.length < 2 || soFavoritos;
             document.getElementById('termo-busca').textContent = `“${document.getElementById('busca').value.trim()}”`;
 
-            renderizar(lista);
+            listaAtual = lista;
+            if (reiniciar) {
+                limiteVisivel = PASSO;
+                trocarVitrine(() => renderizar(lista));
+            } else {
+                renderizar(lista);
+            }
+        }
+
+        function mostrarMais() {
+            limiteVisivel += PASSO;
+            renderizar(listaAtual);
         }
 
         function renderizar(lista) {
             const vitrine = document.getElementById('vitrine');
+            const botaoMais = document.getElementById('mais-ofertas');
+            botaoMais.hidden = lista.length <= limiteVisivel;
+            botaoMais.textContent = `Mostrar mais ofertas (${Math.max(0, lista.length - limiteVisivel)})`;
 
             if (lista.length === 0) {
                 let titulo = 'Nenhuma oferta com esses filtros';
@@ -1169,7 +1457,26 @@
                 return;
             }
 
-            vitrine.innerHTML = lista.map(produto => cartaoOferta(produto)).join('');
+            const visiveis = lista.slice(0, limiteVisivel);
+            vitrine.innerHTML = visiveis.map(produto => cartaoOferta(produto)).join('');
+
+            // Animação: cascata na primeira vez que cada oferta aparece; destaque para as que
+            // chegaram enquanto a página estava aberta
+            const colunas = Math.max(1, getComputedStyle(vitrine).gridTemplateColumns.split(' ').length);
+            let novas = 0;
+            vitrine.querySelectorAll('.oferta').forEach(cartao => {
+                const id = cartao.dataset.id;
+                if (idsVistos.has(id)) return;
+                idsVistos.add(id);
+                if (jaMostrouOfertas && cartao.getBoundingClientRect().top < innerHeight) {
+                    cartao.classList.add('chegou');
+                    return;
+                }
+                cartao.classList.add('entra');
+                cartao.style.setProperty('--atraso', `${(novas++ % colunas) * 80}ms`);
+                observar(cartao);
+            });
+            jaMostrouOfertas = true;
 
             inserirChamadaGrupo(vitrine);
         }
@@ -1186,7 +1493,7 @@
             const detalhes = [textoVendidos(produto.vendas), minutos !== null ? tempoRelativo(minutos) : '']
                 .filter(Boolean).join(' · ');
             return `
-                <article class="oferta">
+                <article class="oferta" data-id="${id}">
                     <a class="foto" href="${link}" target="_blank" rel="noopener sponsored" tabindex="-1" aria-hidden="true">
                         ${produto.imagem ? `<img src="${escaparHtml(produto.imagem)}" alt="" loading="lazy">` : ''}
                         ${nova ? '<span class="selo-nova">Nova</span>' : ''}
@@ -1313,14 +1620,76 @@
             const jaEra = favoritos.includes(id);
             favoritos = jaEra ? favoritos.filter(f => f !== id) : [...favoritos, id];
             gravarFavoritos();
-            aplicarFiltros();
+            document.getElementById('contador-favoritos').textContent = favoritos.length;
+            if (soFavoritos) {
+                aplicarFiltros(true);
+            } else {
+                // Atualiza só o coração, para a vitrine não piscar
+                document.querySelectorAll(`.fav[data-id="${CSS.escape(id)}"]`).forEach(botao => {
+                    botao.setAttribute('aria-pressed', !jaEra);
+                    botao.setAttribute('aria-label', jaEra ? 'Salvar nos favoritos' : 'Remover dos favoritos');
+                    botao.classList.remove('pulsa');
+                    void botao.offsetWidth;
+                    if (!jaEra) botao.classList.add('pulsa');
+                });
+            }
             mostrarAviso(jaEra ? 'Removido dos favoritos' : 'Salvo nos favoritos');
         }
 
         function alternarFavoritos() {
             soFavoritos = !soFavoritos;
             document.getElementById('botao-favoritos').setAttribute('aria-pressed', soFavoritos);
-            aplicarFiltros();
+            aplicarFiltros(true);
+        }
+
+        // ---------- Radar e faixa "acabou de cair no radar" ----------
+        // Posição de cada ponto no radar: ângulo (graus, a partir do topo, sentido horário) e distância do centro
+        const POSICOES_RADAR = [[38, 0.64], [112, 0.4], [178, 0.72], [250, 0.52], [318, 0.7]];
+        const VOLTA_RADAR = 6; // segundos de uma volta do feixe
+
+        function maisNovas(quantidade) {
+            return [...produtos]
+                .filter(p => p.imagem)
+                .sort((a, b) => String(b.publicado_em).localeCompare(String(a.publicado_em)))
+                .slice(0, quantidade);
+        }
+
+        function atualizarRadarETrilho() {
+            const radar = document.getElementById('radar');
+            radar.querySelectorAll('.ponto').forEach(p => p.remove());
+            // Em que ponto da volta o feixe está agora (ele começou a girar quando a página abriu)
+            const animacaoFeixe = radar.querySelector('.feixe').getAnimations?.()[0];
+            const faseFeixe = animacaoFeixe ? (animacaoFeixe.currentTime / 1000) % VOLTA_RADAR : 0;
+            maisNovas(POSICOES_RADAR.length).forEach((produto, i) => {
+                const [angulo, distancia] = POSICOES_RADAR[i];
+                const radianos = angulo * Math.PI / 180;
+                const ponto = document.createElement('a');
+                ponto.className = 'ponto';
+                ponto.href = produto.link;
+                ponto.target = '_blank';
+                ponto.rel = 'noopener sponsored';
+                ponto.setAttribute('aria-label', `${produto.titulo}, ${Number(produto.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`);
+                ponto.style.left = `${50 + distancia * 50 * Math.sin(radianos)}%`;
+                ponto.style.top = `${50 - distancia * 50 * Math.cos(radianos)}%`;
+                // Cada ponto acende quando o feixe passa por ele
+                ponto.style.animationDelay = `${(angulo / 360) * VOLTA_RADAR - faseFeixe - VOLTA_RADAR}s`;
+                ponto.innerHTML = `<img src="${escaparHtml(produto.imagem)}" alt="">`;
+                radar.appendChild(ponto);
+            });
+
+            const trilho = document.getElementById('trilho');
+            const novas = maisNovas(14);
+            const itens = novas.map(produto => `
+                <a class="mini" href="${escaparHtml(produto.link)}" target="_blank" rel="noopener sponsored">
+                    <img src="${escaparHtml(produto.imagem)}" alt="" loading="lazy">
+                    <span>
+                        <span class="nome">${escaparHtml(produto.titulo)}</span>
+                        <span class="valor">${Number(produto.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                    </span>
+                </a>`).join('');
+            // A lista aparece duas vezes para a faixa dar a volta sem emenda; a cópia fica fora do leitor de tela
+            trilho.innerHTML = itens + (reduzMovimento ? '' : `<div style="display:contents" aria-hidden="true" inert>${itens}</div>`);
+            trilho.closest('.chegaram').hidden = novas.length === 0;
         }
 
         async function compartilhar(titulo, link) {
@@ -1412,6 +1781,26 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            // Abertura: título, texto e lojas entram em sequência
+            document.querySelectorAll('.abertura .entra').forEach(el => el.classList.add('visivel'));
+
+            // Chega perto do fim da vitrine: mostra mais ofertas sozinho
+            if ('IntersectionObserver' in window) {
+                new IntersectionObserver(entradas => {
+                    if (entradas[0].isIntersecting && !document.getElementById('mais-ofertas').hidden) mostrarMais();
+                }, { rootMargin: '600px 0px' }).observe(document.getElementById('mais'));
+
+                // Botão flutuante do WhatsApp aparece depois que o cliente sai do topo
+                const flutuante = document.querySelector('.flutuante');
+                if (flutuante) {
+                    new IntersectionObserver(entradas => {
+                        flutuante.classList.toggle('visivel', !entradas[0].isIntersecting);
+                    }).observe(document.querySelector('.abertura'));
+                }
+            } else {
+                document.querySelector('.flutuante')?.classList.add('visivel');
+            }
+
             mostrarCarregando();
             carregarOfertas();
             // Confere ofertas novas a cada 30 segundos; só redesenha se algo mudou

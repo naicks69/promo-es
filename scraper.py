@@ -1,8 +1,10 @@
 import hashlib
 import json
 import math
+import re
 import time
 import os
+import unicodedata
 from urllib.parse import quote_plus
 import requests
 from dotenv import load_dotenv
@@ -51,46 +53,126 @@ LOJAS = {
 # Categorias do site e do WhatsApp (chave interna -> nome exibido)
 CATEGORIAS = {
     "casa": "Casa",
+    "cozinha": "Cozinha",
     "eletronicos": "Eletrônicos",
     "gamer": "Gamer",
     "moda": "Moda",
+    "beleza": "Beleza",
+    "esporte": "Esporte",
+    "infantil": "Infantil",
+    "pet": "Pet",
 }
 
-# O que o bot procura nas lojas e em qual categoria do site cada resultado entra.
+# O que o bot procura na Shopee e no AliExpress (itens mais básicos) e em qual
+# categoria do site cada resultado entra. Cada varredura usa só uma parte da lista,
+# em rodízio, para variar os produtos sem gastar mais chamadas das APIs.
 # Para acrescentar produtos novos, basta incluir uma linha aqui.
 BUSCAS = [
     {"palavra_chave": "garrafa térmica", "categoria": "casa"},
-    {"palavra_chave": "organizador cozinha", "categoria": "casa"},
     {"palavra_chave": "luminária led", "categoria": "casa"},
+    {"palavra_chave": "organizador de armário", "categoria": "casa"},
+    {"palavra_chave": "jogo de cama", "categoria": "casa"},
+    {"palavra_chave": "toalha de banho", "categoria": "casa"},
+    {"palavra_chave": "organizador cozinha", "categoria": "cozinha"},
+    {"palavra_chave": "potes herméticos", "categoria": "cozinha"},
+    {"palavra_chave": "utensílios de silicone", "categoria": "cozinha"},
+    {"palavra_chave": "mixer de mão", "categoria": "cozinha"},
     {"palavra_chave": "fone bluetooth", "categoria": "eletronicos"},
     {"palavra_chave": "smartwatch", "categoria": "eletronicos"},
     {"palavra_chave": "carregador turbo", "categoria": "eletronicos"},
+    {"palavra_chave": "caixa de som portátil", "categoria": "eletronicos"},
+    {"palavra_chave": "suporte de celular", "categoria": "eletronicos"},
     {"palavra_chave": "mouse gamer", "categoria": "gamer"},
     {"palavra_chave": "headset gamer", "categoria": "gamer"},
     {"palavra_chave": "teclado gamer", "categoria": "gamer"},
+    {"palavra_chave": "mousepad gamer", "categoria": "gamer"},
     {"palavra_chave": "camiseta masculina", "categoria": "moda"},
     {"palavra_chave": "óculos de sol", "categoria": "moda"},
     {"palavra_chave": "tênis feminino", "categoria": "moda"},
+    {"palavra_chave": "bolsa feminina", "categoria": "moda"},
+    {"palavra_chave": "relógio feminino", "categoria": "moda"},
+    {"palavra_chave": "skincare", "categoria": "beleza"},
+    {"palavra_chave": "maquiagem", "categoria": "beleza"},
+    {"palavra_chave": "secador de cabelo", "categoria": "beleza"},
+    {"palavra_chave": "perfume", "categoria": "beleza"},
+    {"palavra_chave": "garrafa de academia", "categoria": "esporte"},
+    {"palavra_chave": "elástico de exercício", "categoria": "esporte"},
+    {"palavra_chave": "tapete de yoga", "categoria": "esporte"},
+    {"palavra_chave": "roupa de academia", "categoria": "esporte"},
+    {"palavra_chave": "brinquedo educativo", "categoria": "infantil"},
+    {"palavra_chave": "roupa infantil", "categoria": "infantil"},
+    {"palavra_chave": "mochila escolar", "categoria": "infantil"},
+    {"palavra_chave": "brinquedo para cachorro", "categoria": "pet"},
+    {"palavra_chave": "cama pet", "categoria": "pet"},
+    {"palavra_chave": "arranhador gato", "categoria": "pet"},
 ]
 
 # No Mercado Livre o bot procura produtos de mais qualidade (a partir de ML_PRECO_MINIMO),
 # sempre entre os mais vendidos de cada categoria. Para acrescentar, inclua uma linha aqui.
 BUSCAS_MERCADOLIVRE = [
-    {"palavra_chave": "air fryer", "categoria": "casa"},
     {"palavra_chave": "aspirador de pó", "categoria": "casa"},
-    {"palavra_chave": "cafeteira", "categoria": "casa"},
-    {"palavra_chave": "jogo de panelas", "categoria": "casa"},
+    {"palavra_chave": "ventilador", "categoria": "casa"},
+    {"palavra_chave": "jogo de cama queen", "categoria": "casa"},
+    {"palavra_chave": "air fryer", "categoria": "cozinha"},
+    {"palavra_chave": "cafeteira", "categoria": "cozinha"},
+    {"palavra_chave": "jogo de panelas", "categoria": "cozinha"},
+    {"palavra_chave": "liquidificador", "categoria": "cozinha"},
     {"palavra_chave": "smartphone", "categoria": "eletronicos"},
     {"palavra_chave": "smart tv", "categoria": "eletronicos"},
     {"palavra_chave": "fone de ouvido jbl", "categoria": "eletronicos"},
     {"palavra_chave": "caixa de som bluetooth", "categoria": "eletronicos"},
+    {"palavra_chave": "notebook", "categoria": "eletronicos"},
     {"palavra_chave": "console videogame", "categoria": "gamer"},
     {"palavra_chave": "controle ps5", "categoria": "gamer"},
     {"palavra_chave": "monitor gamer", "categoria": "gamer"},
+    {"palavra_chave": "cadeira gamer", "categoria": "gamer"},
     {"palavra_chave": "tênis esportivo", "categoria": "moda"},
     {"palavra_chave": "relógio masculino", "categoria": "moda"},
-    {"palavra_chave": "perfume importado", "categoria": "moda"},
+    {"palavra_chave": "mochila", "categoria": "moda"},
+    {"palavra_chave": "perfume importado", "categoria": "beleza"},
+    {"palavra_chave": "chapinha", "categoria": "beleza"},
+    {"palavra_chave": "barbeador elétrico", "categoria": "beleza"},
+    {"palavra_chave": "bicicleta", "categoria": "esporte"},
+    {"palavra_chave": "esteira ergométrica", "categoria": "esporte"},
+    {"palavra_chave": "halteres", "categoria": "esporte"},
+    {"palavra_chave": "carrinho de bebê", "categoria": "infantil"},
+    {"palavra_chave": "lego", "categoria": "infantil"},
+    {"palavra_chave": "ração para cachorro", "categoria": "pet"},
+    {"palavra_chave": "caixa de transporte pet", "categoria": "pet"},
 ]
+
+# Quantas palavras-chave cada varredura usa (em rodízio). Com a lista inteira passando
+# a cada poucas varreduras, os produtos variam sem gastar mais chamadas das APIs.
+BUSCAS_POR_VARREDURA = int(os.getenv("BUSCAS_POR_VARREDURA", "12"))
+
+
+def intercalar_por_categoria(buscas):
+    """Ordena alternando as categorias (casa, cozinha, eletrônicos...) para cada rodada ser variada."""
+    grupos = {}
+    for busca in buscas:
+        grupos.setdefault(busca["categoria"], []).append(busca)
+    intercaladas = []
+    while any(grupos.values()):
+        for categoria in list(grupos):
+            if grupos[categoria]:
+                intercaladas.append(grupos[categoria].pop(0))
+    return intercaladas
+
+
+def rodada(buscas, ciclo):
+    """Palavras-chave e página desta varredura.
+
+    Cada varredura pega as próximas BUSCAS_POR_VARREDURA palavras da lista; quando a lista
+    inteira já passou, avança para a página seguinte dos resultados.
+    """
+    ordem = intercalar_por_categoria(buscas)
+    quantidade = min(BUSCAS_POR_VARREDURA, len(ordem))
+    rodadas_por_volta = max(1, -(-len(ordem) // quantidade))
+    inicio = (ciclo % rodadas_por_volta) * quantidade
+    da_vez = (ordem + ordem)[inicio:inicio + quantidade]
+    pagina = (ciclo // rodadas_por_volta) % PAGINAS_ROTACAO + 1
+    return da_vez, pagina
+
 
 _ciclo_atual = 0
 
@@ -244,7 +326,7 @@ def buscar_produtos_shopee(palavra_chave, categoria, limite=PRODUTOS_POR_BUSCA, 
     return ofertas[:limite]
 
 
-def buscar_ofertas_shopee(pagina):
+def buscar_ofertas_shopee(ciclo):
     """Percorre as buscas da Shopee e devolve as ofertas com link de afiliado."""
     if not credenciais_configuradas():
         print("⚠️ SHOPEE_APP_ID e SHOPEE_SECRET não configurados. Nenhuma oferta da Shopee será buscada.")
@@ -253,7 +335,8 @@ def buscar_ofertas_shopee(pagina):
     todas_as_ofertas = []
     ids_vistos = set()
 
-    for busca in BUSCAS:
+    buscas, pagina = rodada(BUSCAS, ciclo)
+    for busca in buscas:
         ofertas = buscar_produtos_shopee(busca["palavra_chave"], busca["categoria"], pagina=pagina)
         print(f"🔎 Shopee '{busca['palavra_chave']}' (página {pagina}): {len(ofertas)} produtos com link de afiliado")
 
@@ -269,14 +352,15 @@ def buscar_ofertas_shopee(pagina):
     return todas_as_ofertas
 
 
-def buscar_ofertas_mercadolivre(pagina):
+def buscar_ofertas_mercadolivre(ciclo):
     """Pega os mais vendidos do Mercado Livre de cada categoria do site, com link de afiliado."""
     if not mercadolivre.configurado():
         print("⚠️ ML_CLIENT_ID e ML_CLIENT_SECRET não configurados. Nenhuma oferta do Mercado Livre será buscada.")
         return []
 
+    buscas, pagina = rodada(BUSCAS_MERCADOLIVRE, ciclo)
     palavras_por_categoria = {}
-    for busca in BUSCAS_MERCADOLIVRE:
+    for busca in buscas:
         palavras_por_categoria.setdefault(busca["categoria"], []).append(busca["palavra_chave"])
 
     todas_as_ofertas = []
@@ -328,7 +412,7 @@ def pesquisar_nas_lojas(termo, limite=12):
     return intercalados[:limite]
 
 
-def buscar_ofertas_aliexpress(pagina):
+def buscar_ofertas_aliexpress(ciclo):
     """Percorre as buscas no AliExpress e devolve as ofertas com link de afiliado."""
     if not aliexpress.configurado():
         print("⚠️ ALIEXPRESS_APP_KEY, ALIEXPRESS_APP_SECRET e ALIEXPRESS_TRACKING_ID não configurados.")
@@ -337,7 +421,8 @@ def buscar_ofertas_aliexpress(pagina):
     todas_as_ofertas = []
     ids_vistos = set()
     erros = []
-    for busca in BUSCAS:
+    buscas, pagina = rodada(BUSCAS, ciclo)
+    for busca in buscas:
         try:
             ofertas = aliexpress.buscar_produtos_aliexpress(
                 busca["palavra_chave"], busca["categoria"], PRODUTOS_POR_BUSCA, pagina
@@ -352,7 +437,7 @@ def buscar_ofertas_aliexpress(pagina):
                 todas_as_ofertas.append(oferta)
         time.sleep(1)
 
-    resumo = f"última varredura: {len(BUSCAS)} buscas, {len(todas_as_ofertas)} ofertas com link de afiliado."
+    resumo = f"última varredura: {len(buscas)} buscas, {len(todas_as_ofertas)} ofertas com link de afiliado."
     if erros:
         resumo += f" {len(erros)} busca(s) com erro. Primeiro erro: {erros[0]}"
     aliexpress.registrar_diagnostico(resumo)
@@ -367,16 +452,68 @@ FONTES_DE_OFERTAS = [
 ]
 
 
+# Palavras que não ajudam a distinguir um produto de outro
+PALAVRAS_VAZIAS = {
+    "de", "da", "do", "das", "dos", "com", "para", "e", "em", "a", "o", "as", "os", "kit",
+    "novo", "nova", "original", "promocao", "oferta", "frete", "gratis", "envio", "imediato",
+}
+
+
+def palavras_do_titulo(titulo):
+    """Primeiras palavras significativas do título, sem acento e em minúsculas."""
+    sem_acento = unicodedata.normalize("NFD", titulo or "").encode("ascii", "ignore").decode().lower()
+    # "500 ml" e "500ml" viram a mesma palavra
+    sem_acento = re.sub(r"(\d+)\s+(ml|l|g|kg|cm|mm|m|w|v|gb|tb|mah|pol|polegadas)\b", r"\1\2", sem_acento)
+    palavras = re.findall(r"[a-z0-9]+", sem_acento)
+    return set([p for p in palavras if len(p) > 1 and p not in PALAVRAS_VAZIAS][:8])
+
+
+def parecidos(palavras_a, palavras_b):
+    """Títulos quase iguais: 60% ou mais das palavras significativas em comum."""
+    if not palavras_a or not palavras_b:
+        return False
+    return len(palavras_a & palavras_b) / len(palavras_a | palavras_b) >= 0.6
+
+
+def filtrar_repetidos(ofertas, ativas, recentes):
+    """Tira da varredura os produtos que deixariam o site repetitivo.
+
+    - produto publicado há pouco tempo (está em `recentes`) não volta logo depois de sair;
+    - produto quase igual (título parecido) a outro que está no site, que passou por ele
+      há pouco tempo, ou que já entrou nesta mesma varredura, fica de fora.
+    As ofertas que já estão no site seguem normalmente (só têm preço e link atualizados).
+    """
+    ids_ativos = {id_ for id_, _ in ativas}
+    ids_recentes = {id_ for id_, _ in recentes}
+    titulos = [palavras_do_titulo(titulo) for _, titulo in list(ativas) + list(recentes)]
+    aceitas, descartadas = [], 0
+    for oferta in ofertas:
+        if oferta["id"] in ids_ativos:
+            aceitas.append(oferta)
+            continue
+        if oferta["id"] in ids_recentes:
+            descartadas += 1
+            continue
+        palavras = palavras_do_titulo(oferta["titulo"])
+        if any(parecidos(palavras, outras) for outras in titulos):
+            descartadas += 1
+            continue
+        titulos.append(palavras)
+        ids_ativos.add(oferta["id"])
+        aceitas.append(oferta)
+    return aceitas, descartadas
+
+
 def buscar_ofertas_afiliados():
-    """Busca as ofertas de todas as lojas integradas, avançando uma página por ciclo."""
+    """Busca as ofertas de todas as lojas integradas, com palavras-chave em rodízio."""
     global _ciclo_atual
-    pagina = _ciclo_atual % PAGINAS_ROTACAO + 1
+    ciclo = _ciclo_atual
     _ciclo_atual += 1
 
     todas_as_ofertas = []
     for loja, buscar in FONTES_DE_OFERTAS:
         try:
-            todas_as_ofertas.extend(buscar(pagina))
+            todas_as_ofertas.extend(buscar(ciclo))
         except Exception as e:
             # Uma loja com problema não impede as outras de atualizarem
             print(f"❌ Erro ao buscar ofertas da loja {loja}: {e}")

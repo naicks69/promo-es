@@ -5,8 +5,13 @@ das ofertas pelo WhatsApp.
 
 ## Como funciona
 
-- **A cada 5 minutos** o servidor busca ofertas novas (cada busca lê a página
-  seguinte dos resultados, para variar os produtos) e salva no banco.
+- **A cada 5 minutos** o servidor busca ofertas novas e salva no banco. São 9
+  categorias (Casa, Cozinha, Eletrônicos, Gamer, Moda, Beleza, Esporte, Infantil e Pet)
+  e dezenas de palavras-chave: cada varredura usa 12 delas, em rodízio, e quando a lista
+  inteira passa, avança para a página seguinte dos resultados.
+- **Sem repetição:** um produto que saiu do site só volta depois de 24 horas, e um
+  produto com título quase igual a outro que está (ou esteve há pouco) no site fica de
+  fora, inclusive o mesmo produto vendido em outra loja.
 - **Cada oferta fica no site por até 4 horas** depois de publicada; depois disso
   ela sai do site e do banco.
 - **A cada 10 minutos**, das 8h às 22h, o bot de WhatsApp posta nos grupos

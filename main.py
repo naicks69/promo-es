@@ -23,12 +23,16 @@ from database import (
     remover_grupo,
     link_convite_grupo,
     contar_ofertas_por_loja,
+    ofertas_ativas,
+    publicados_desde,
+    registrar_publicacao,
+    limpar_publicacoes_antigas,
     contar_grupos,
     agora_utc,
     data_iso,
 )
 from collections import deque
-from scraper import buscar_ofertas_afiliados, pesquisar_nas_lojas, link_busca_amazon, CATEGORIAS, LOJAS
+from scraper import buscar_ofertas_afiliados, filtrar_repetidos, pesquisar_nas_lojas, link_busca_amazon, CATEGORIAS, LOJAS
 import aliexpress
 import mercadolivre
 from whatsapp import interpretar_mensagem, texto_oferta
@@ -60,6 +64,9 @@ app.config.update(
 # Busca ofertas novas a cada 5 minutos e mantém cada uma no site por até 4 horas
 INTERVALO_VARREDURA = int(os.getenv("INTERVALO_VARREDURA", "300"))
 HORAS_VALIDADE_OFERTA = float(os.getenv("HORAS_VALIDADE_OFERTA", "4"))
+
+# Um produto que saiu do site só pode voltar depois deste tempo (evita repetição)
+HORAS_SEM_REPETIR = float(os.getenv("HORAS_SEM_REPETIR", "24"))
 
 # WhatsApp: a cada 10 minutos, até 3 ofertas novas para cada grupo e pessoa inscrita
 INTERVALO_WHATSAPP = int(os.getenv("INTERVALO_WHATSAPP", "600"))
@@ -480,8 +487,18 @@ def salvar_ofertas(ofertas):
 def executar_varredura():
     """Busca ofertas novas, salva no banco e tira do site as que passaram do prazo."""
     global ultima_varredura
-    total = salvar_ofertas(buscar_ofertas_afiliados())
     remover_ofertas_expiradas(HORAS_VALIDADE_OFERTA)
+    ativas = ofertas_ativas(HORAS_VALIDADE_OFERTA)
+    ofertas, repetidas = filtrar_repetidos(
+        buscar_ofertas_afiliados(), ativas, publicados_desde(HORAS_SEM_REPETIR)
+    )
+    ids_ativos = {id_ for id_, _ in ativas}
+    for oferta in ofertas:
+        if oferta["id"] not in ids_ativos:
+            registrar_publicacao(oferta["id"], oferta["titulo"])
+    limpar_publicacoes_antigas(max(72, HORAS_SEM_REPETIR * 2))
+    total = salvar_ofertas(ofertas)
+    print(f"Varredura: {total} ofertas salvas, {repetidas} repetidas ou parecidas deixadas de fora.")
     ultima_varredura = agora_utc()
     return total
 
