@@ -47,6 +47,14 @@ inicializar_banco()
 
 # Número do bot (só dígitos, com DDI e DDD). O site usa para o botão "Falar com o bot".
 NUMERO_BOT_WHATSAPP = re.sub(r"\D", "", os.getenv("WHATSAPP_NUMERO_BOT", "5511910032144"))
+# Perfil do Instagram mostrado no botão flutuante do site (ex.: https://instagram.com/radardeofertas)
+LINK_INSTAGRAM = os.getenv("INSTAGRAM_URL", "").strip()
+
+
+def nome_do_instagram(link):
+    """https://www.instagram.com/radardeofertas/ -> @radardeofertas"""
+    encontrado = re.search(r"instagram\.com/([A-Za-z0-9_.]+)", link or "")
+    return f"@{encontrado.group(1)}" if encontrado else ""
 
 # Link de convite do grupo de promoções. Normalmente não precisa configurar: o bot
 # envia o convite sozinho quando o grupo é ativado com !ativar. Esta variável só
@@ -112,6 +120,8 @@ def home():
         "index.html",
         link_bot=link_bot,
         link_grupo=link_do_grupo(),
+        link_instagram=LINK_INSTAGRAM,
+        nome_instagram=nome_do_instagram(LINK_INSTAGRAM),
         categorias=CATEGORIAS,
         lojas=LOJAS,
         intervalo_whatsapp=INTERVALO_WHATSAPP // 60,
